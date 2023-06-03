@@ -1,0 +1,2580 @@
+---
+title: "Résultats"
+output: html_document
+date: "2023-05-05"
+editor_options: 
+  markdown: 
+    wrap: 72
+---
+
+```{r include=FALSE}
+vapply(c("magrittr","stringr", "readr", "janitor", "scales", "mgcv", "RColorBrewer", "dplyr","ggplot2","car","reshape","tidyverse", "lme4", "contrast","vegan", "iNEXT","grid","VennDiagram","emmeans"), library, logical(1L),
+       character.only = TRUE, logical.return = TRUE)
+citation(package = "lme4")
+```
+
+**Working Directory**
+
+```{r include=FALSE}
+setwd("~/Desktop/Analyse des données")
+data1<-read.csv("Balanites aegyptiaca.csv",header = T, row.names = NULL,sep = ";")
+summary(data1)
+
+data2<-read.csv("Balanites aegyptiaca_2.csv",header = T, row.names = NULL,sep = ";")
+flor<-read.csv("data_floraison.csv",header = T, row.names = NULL,sep = ";")
+
+```
+
+**Importation du tableau de données**
+
+Téléchargement du tableau, garder surtout les informations des ordres
+
+Sélection est faite à la main, pour chaque ordre (Diptera, Hymenoptera,
+Coleoptera) et pour la sélection Autres, correspond donc à tous les
+autres groupes n'appartenant pas à ces ordres.
+
+En suite, on regroupe Arachnida étant donné qu'ils ne font pas partie
+des insectes.
+
+*Hymenoptera*
+
+```{r include=FALSE}
+col_filteredHym<-select(data1,starts_with('hymenoptera'))
+names(col_filteredHym)<-NULL
+colnames(col_filteredHym) <- as.character(unlist(col_filteredHym[1,]))
+dataHymeno <- col_filteredHym[-1,] # remove first row
+dataH <- apply(dataHymeno[,1:ncol(dataHymeno)],2, as.numeric)
+ordre_values <- sample(c("Hymenoptera"), nrow(dataHymeno), replace = TRUE)
+dataHymeno$ordre <- ordre_values
+###
+H <- data.frame(Saison=data2$Saison, identifiant_arbre = data2$identifiant_arbre, site=data2$site, date=data2$date, ordre=dataHymeno$ordre)
+H<-bind_cols(H,dataH)
+summary(H)
+###
+```
+
+Piege Hymeno
+
+```{r include=FALSE}
+df_piegesH <- H[grep("Piege", H$identifiant_arbre), ]
+```
+
+Extraction du tableau Filet & enlèvement des Soirs
+
+```{r include=FALSE}
+specific_word <- "Piege"
+specific_time <- "soir"
+
+df_filetH<- H[!str_detect(H$identifiant_arbre, specific_word), ]
+df_filetH <- df_filetH[!str_detect(df_filetH$identifiant_arbre, specific_time), ]
+```
+
+Regroupement par individu dans le tableau Filet (division par 3 du
+nombre de lignes attendu)
+
+```{r include=FALSE}
+dfiletH<-df_filetH[,-(1)]
+dfiletH<-dfiletH[,-(2:4)]
+
+dfiletH<-aggregate( . ~ identifiant_arbre, dfiletH, sum) 
+
+nfiletH<-df_filetH[,1:5]
+nfiletH<-aggregate( . ~ identifiant_arbre, nfiletH, max)
+
+filetH<-left_join(nfiletH,dfiletH,by="identifiant_arbre")
+```
+
+Regroupement par individu dans le tableau Piège (passage de 81 à 27
+lignes attendu)
+
+```{r include=FALSE}
+piegebisH = str_split_fixed(string = df_piegesH$identifiant_arbre, pattern = "_", n = 3)
+piegebisH[piegebisH == ""] = NA
+
+#Adapter selon le nombre de lignes du jeu de données
+piegebis2H <- data.frame(identifiant =piegebisH[1:77], piege = piegebisH[78:154], couleur = piegebisH[155:231])
+
+
+df_piegesH$identifiant_arbre<-piegebis2H$identifiant
+
+dpiegeH<-df_piegesH[,-(1)]
+dpiegeH<-dpiegeH[,-(2:4)]
+dpiegeH<-aggregate( . ~ identifiant_arbre, dpiegeH, sum)
+
+npiegeH<-df_piegesH[,1:5]
+npiegeH<-aggregate( . ~ identifiant_arbre, npiegeH, max)
+
+piegeH<-left_join(npiegeH,dpiegeH,by="identifiant_arbre")
+```
+
+filetH piegeH
+
+*Diptera*
+
+```{r include=FALSE}
+cols_filteredDip<-data1 %>% select(starts_with('diptera'))
+names(cols_filteredDip)<-NULL
+colnames(cols_filteredDip) <- as.character(unlist(cols_filteredDip[1,]))
+dataDiptera <- cols_filteredDip[-1,] # remove first row
+dataD <- apply(dataDiptera[,1:ncol(dataDiptera)], 2, as.numeric)
+ordre_values <- sample(c("Diptera"), nrow(dataDiptera), replace = TRUE)
+dataDiptera$ordre <- ordre_values
+###
+D <- data.frame(Saison=data2$Saison, identifiant_arbre = data2$identifiant_arbre, site=data2$site, date=data2$date, ordre=dataDiptera$ordre)
+D<-bind_cols(D,dataD)
+summary(D)
+###
+```
+
+Piege Diptera
+
+```{r include=FALSE}
+df_piegesD <- D[grep("Piege", D$identifiant_arbre), ]
+```
+
+Extraction du tableau Filet & enlèvement des Soirs
+
+```{r include=FALSE}
+df_filetD<- D[!str_detect(D$identifiant_arbre, specific_word), ]
+df_filetD <- df_filetD[!str_detect(df_filetD$identifiant_arbre, specific_time), ]
+```
+
+Regroupement par individu dans le tableau Filet (division par 3 du
+nombre de lignes attendu)
+
+```{r include=FALSE}
+dfiletD<-df_filetD[,-(1)]
+dfiletD<-dfiletD[,-(2:4)]
+dfiletD<-aggregate( . ~ identifiant_arbre, dfiletD, sum) 
+
+nfiletD<-df_filetD[,1:5]
+nfiletD<-aggregate( . ~ identifiant_arbre, nfiletD, max)
+
+filetD<-left_join(nfiletD,dfiletD,by="identifiant_arbre")
+```
+
+Regroupement par individu dans le tableau Piège (passage de 81 à 27
+lignes attendu)
+
+```{r include=FALSE}
+piegebisD = str_split_fixed(string = df_piegesD$identifiant_arbre, pattern = "_", n = 3)
+piegebisD[piegebisD == ""] = NA
+
+#Adapter selon le nombre de lignes du jeu de données
+piegebis2D <- data.frame(identifiant =piegebisD[1:77], piege = piegebisD[78:154], couleur = piegebisD[155:231])
+
+
+df_piegesD$identifiant_arbre<-piegebis2D$identifiant
+
+dpiegeD<-df_piegesD[,-(1)]
+dpiegeD<-dpiegeD[,-(2:4)]
+dpiegeD<-aggregate( . ~ identifiant_arbre, dpiegeD, sum)
+
+npiegeD<-df_piegesD[,1:5]
+npiegeD<-aggregate( . ~ identifiant_arbre, npiegeD, max)
+
+piegeD<-left_join(npiegeD,dpiegeD,by="identifiant_arbre")
+```
+
+filetD piegeD
+
+*Coleoptera*
+
+```{r include=FALSE}
+col_filteredColeo<-data1 %>% select(starts_with('coleoptera'))
+names(col_filteredColeo)<-NULL
+colnames(col_filteredColeo) <- as.character(unlist(col_filteredColeo[1,]))
+dataColeo <- col_filteredColeo[-1,] # remove first row
+dataC <- apply(dataColeo[,1:ncol(dataColeo)],2, as.numeric)
+ordre_values <- sample(c("Coleoptera"), nrow(dataColeo), replace = TRUE)
+dataColeo$ordre <- ordre_values
+###
+C <- data.frame(Saison=data2$Saison, identifiant_arbre = data2$identifiant_arbre, site=data2$site, date=data2$date, ordre=dataColeo$ordre)
+C<-bind_cols(C,dataC)
+summary(C)
+###
+```
+
+Piege Coleoptera
+
+```{r include=FALSE}
+df_piegesC <- C[grep("Piege", C$identifiant_arbre), ]
+```
+
+Extraction du tableau Filet & enlèvement des Soirs
+
+```{r include=FALSE}
+df_filetC<- C[!str_detect(C$identifiant_arbre, specific_word), ]
+df_filetC <- df_filetC[!str_detect(df_filetC$identifiant_arbre, specific_time), ]
+```
+
+Regroupement par individu dans le tableau Filet (division par 3 du
+nombre de lignes attendu)
+
+```{r include=FALSE}
+dfiletC<-df_filetC[,-(1)]
+dfiletC<-dfiletC[,-(2:4)]
+dfiletC<-aggregate( . ~ identifiant_arbre, dfiletC, sum) 
+
+nfiletC<-df_filetC[,1:5]
+nfiletC<-aggregate( . ~ identifiant_arbre, nfiletC, max)
+
+filetC<-left_join(nfiletC,dfiletC,by="identifiant_arbre")
+```
+
+Regroupement par individu dans le tableau Piège (passage de 81 à 27
+lignes attendu)
+
+```{r include=FALSE}
+piegebisC = str_split_fixed(string = df_piegesC$identifiant_arbre, pattern = "_", n = 3)
+piegebisC[piegebisC == ""] = NA
+
+#Adapter selon le nombre de lignes du jeu de données
+piegebis2C <- data.frame(identifiant =piegebisC[1:77], piege = piegebisC[78:154], couleur = piegebisC[155:231])
+
+
+df_piegesC$identifiant_arbre<-piegebis2C$identifiant
+
+dpiegeC<-df_piegesC[,-(1)]
+dpiegeC<-dpiegeC[,-(2:4)]
+dpiegeC<-aggregate( . ~ identifiant_arbre, dpiegeC, sum)
+
+npiegeC<-df_piegesC[,1:5]
+npiegeC<-aggregate( . ~ identifiant_arbre, npiegeC, max)
+
+piegeC<-left_join(npiegeC,dpiegeC,by="identifiant_arbre")
+```
+
+filetC piegeC
+
+*Autres groupes d'insectes*
+
+```{r include=FALSE}
+cols_filteredAutres <- !grepl("Localite|identifiant_arbre|site|espece_arbre|date|date d'enregistrement|Coleoptera|coleoptera|Hymenoptera|hymenoptera|Diptera|diptera", colnames(data1))
+df_autres <- data1[, cols_filteredAutres]
+names(df_autres)<-NULL
+colnames(df_autres)<-as.character(unlist(df_autres[1,]))
+dataAutres<-df_autres[-1,]
+dataA<- apply(dataAutres[,5:ncol(dataAutres)], 2, as.numeric)
+ordre_valuesA <- sample(c("Autres"), nrow(dataAutres), replace = TRUE)
+dataAutres$ordre <- ordre_valuesA
+###
+A <- data.frame(Saison=data2$Saison, identifiant_arbre = data2$identifiant_arbre, site=data2$site, date=data2$date, ordre=dataAutres$ordre)
+A<-bind_cols(A,dataA)
+summary(A)
+```
+
+Piege Autres
+
+```{r include=FALSE}
+df_piegesA <- A[grep("Piege", A$identifiant_arbre), ]
+```
+
+Extraction du tableau Filet & enlèvement des Soirs
+
+```{r include=FALSE}
+df_filetA<- A[!str_detect(A$identifiant_arbre, specific_word), ]
+df_filetA <- df_filetA[!str_detect(df_filetA$identifiant_arbre, specific_time), ]
+```
+
+Regroupement par individu dans le tableau Filet (division par 3 du
+nombre de lignes attendu)
+
+```{r include=FALSE}
+dfiletA<-df_filetA[,-(1)]
+dfiletA<-dfiletA[,-(2:4)]
+dfiletA<-aggregate( . ~ identifiant_arbre, dfiletA, sum) 
+
+nfiletA<-df_filetA[,1:5]
+nfiletA<-aggregate( . ~ identifiant_arbre, nfiletA, max)
+
+filetA<-left_join(nfiletA,dfiletA,by="identifiant_arbre")
+```
+
+Regroupement par individu dans le tableau Piège (passage de 81 à 27
+lignes attendu)
+
+```{r include=FALSE}
+piegebisA = str_split_fixed(string = df_piegesA$identifiant_arbre, pattern = "_", n = 3)
+piegebisA[piegebisA == ""] = NA
+
+#Adapter selon le nombre de lignes du jeu de données
+piegebis2A <- data.frame(identifiant =piegebisA[1:77], piege = piegebisA[78:154], couleur = piegebisA[155:231])
+
+
+df_piegesA$identifiant_arbre<-piegebis2A$identifiant
+
+dpiegeA<-df_piegesA[,-(1)]
+dpiegeA<-dpiegeA[,-(2:4)]
+dpiegeA<-aggregate( . ~ identifiant_arbre, dpiegeA, sum)
+
+npiegeA<-df_piegesA[,1:5]
+npiegeA<-aggregate( . ~ identifiant_arbre, npiegeA, max)
+
+piegeA<-left_join(npiegeA,dpiegeA,by="identifiant_arbre")
+```
+
+###Récupération des matrices
+
+**Récupérer la matrice piege**
+
+```{r message=FALSE, include=FALSE, paged.print=FALSE}
+piege<-bind_rows(piegeC,piegeH)
+piege<-bind_rows(piege,piegeD)
+piege<-bind_rows(piege,piegeA)
+piege[is.na(piege)] <- 0
+piege
+```
+
+```{r include=FALSE}
+#write.csv( x=piege, file = "piege.csv")
+```
+
+**Récupérer la matrice filet**
+
+```{r message=FALSE, include=FALSE, paged.print=FALSE}
+filet<-bind_rows(filetC,filetH)
+filet<-bind_rows(filet,filetD)
+filet<-bind_rows(filet,filetA)
+filet[is.na(filet)] <- 0
+filet
+```
+
+```{r include=FALSE}
+#write.csv(x=filet,sep=",", file = "filet.csv")
+#write.csv(x=piege, sep=",", file = "piege.csv")
+```
+
+Filet tout
+
+```{r}
+filetfe<-subset(filet,filet$Saison=="Fevrier")
+filetao<-subset(filet,filet$Saison=="Aout")
+filetju<-subset(filet,filet$Saison=="Juin")
+
+filetfex<-aggregate( . ~ identifiant_arbre, filetfe[,-(2:5)], sum)
+filetfen<-aggregate( . ~ identifiant_arbre, filetfe[,(1:5)], max)
+filetfe<-left_join(filetfen,filetfex,by="identifiant_arbre")
+
+filetaox<-aggregate( . ~ identifiant_arbre, filetao[,-(2:5)], sum)
+filetaon<-aggregate( . ~ identifiant_arbre, filetao[,(1:5)], max)
+filetao<-left_join(filetaon,filetaox,by="identifiant_arbre")
+
+filetjux<-aggregate( . ~ identifiant_arbre, filetju[,-(2:5)], sum)
+filetjun<-aggregate( . ~ identifiant_arbre, filetju[,(1:5)], max)
+filetju<-left_join(filetjun,filetjux,by="identifiant_arbre")
+
+filetall<-bind_rows(filetju,filetao)
+filetall<-bind_rows(filetall,filetfe)
+```
+
+Piege tout
+
+```{r}
+piegefe<-subset(piege,piege$Saison=="Fevrier")
+piegeao<-subset(piege,piege$Saison=="Aout")
+piegeju<-subset(piege,piege$Saison=="Juin")
+
+piegefex<-aggregate( . ~ identifiant_arbre, piegefe[,-(2:5)], sum)
+piegefen<-aggregate( . ~ identifiant_arbre,piegefe[,(1:5)], max)
+piegefe<-left_join(piegefen,piegefex,by="identifiant_arbre")
+
+piegeaox<-aggregate( . ~ identifiant_arbre, piegeao[,-(2:5)], sum)
+piegeaon<-aggregate( . ~ identifiant_arbre, piegeao[,(1:5)], max)
+piegeao<-left_join(piegeaon,piegeaox,by="identifiant_arbre")
+
+piegejux<-aggregate( . ~ identifiant_arbre, piegeju[,-(2:5)], sum)
+piegejun<-aggregate( . ~ identifiant_arbre, piegeju[,(1:5)], max)
+piegeju<-left_join(piegejun,piegejux,by="identifiant_arbre")
+
+piegeall<-bind_rows(piegeju,piegeao)
+piegeall<-bind_rows(piegeall,piegefe)
+```
+
+################################################################################################### 
+
+### Courbes de raréfaction
+
++Rang/Abondance *Problème avec les courbes de raréfaction* Calculs
+estimateurs des taux de complétude pour modèle réfaction (non utilisés
+ici mais pour avoir une base non biaisé si usage, à reprendre, ici la
+couverture)
+
+```{r echo=FALSE}
+library("entropart")
+filetr<-subset(filet, filet$Saison=="Août")
+NsA <- colSums(filetr[,-(1:5)]) 
+
+filetw<-subset(filet, filet$Saison=="Juin")
+NsJ <- colSums(filetw[,-(1:5)]) 
+
+filetk<-subset(filet, filet$Saison=="Février")
+NsF <- colSums(filetk[,-(1:5)]) 
+
+NsT<- colSums(filet[,-(1:5)]) 
+```
+
+Filet - Préparation du tableau
+
+```{r include=FALSE}
+lfilet<-filet[,-(1)]
+lfilet<-lfilet[,-(2:4)]
+Saison<-aggregate( . ~ Saison, lfilet, sum)
+
+Saison2<-Saison[,-1]
+Saison2<-Saison2[ , colSums(Saison2) != 0]
+Assemblage<-Saison$Saison
+n<-apply(Saison[,-1],1,sum)
+
+l<-function(x){
+  x<-length(x[x!=0])
+}
+S.obs<-apply(Saison2,1,l)
+SC<-c(0.92,0.92,0.95)
+summary(Saison2)
+
+NEX2<-data.frame(Saison2)
+NEX2<-t(NEX2)
+colnames(NEX2) <- Assemblage
+```
+
+Piège - Préparation des tableaux
+
+```{r include=FALSE}
+lpiege<-piege[,-(1)]
+lpiege<-lpiege[,-(2:5)]
+Saisonp<-aggregate( . ~ Saison, lpiege, sum)
+
+Saison2p<-Saisonp[,-1]
+Saison2p<-Saison2p[ , colSums(Saison2p) != 0]
+Assemblagep<-Saisonp$Saison
+np<-apply(Saisonp[,-1],1,sum)
+
+l<-function(x){
+  x<-length(x[x!=0])
+}
+S.obsp<-apply(Saison2p,1,l)
+SCp<-c(0.92,0.86,0.90)
+summary(Saison2p)
+NEX2p<-data.frame(Saison2p)
+NEX2p<-t(NEX2p)
+colnames(NEX2p) <- Assemblagep
+```
+
+Filet - Modèle et Courbes
+
+```{r include=FALSE}
+nex<-iNEXT(NEX2, q=0, datatype="abundance", size=NULL, endpoint=5000, se=TRUE, conf=0.95)
+df <- fortify(nex, type=1)
+
+df.point <- df[df$Method=="Observed",]
+df.line <- df[df$Method!="Observed",]
+df.line$Method <- as.factor(df.line$Method)
+
+e1<-ggplot(df, aes(x=x, y=y, colour=Assemblage)) + 
+  geom_point(aes(shape=Assemblage), size=3, data=df.point) +
+  geom_line(aes(linetype=Method), lwd=1, data=df.line) +
+  geom_ribbon(aes(ymin=y.lwr, ymax=y.upr,
+                  fill=Assemblage, colour=NULL), alpha=0.2) +
+  scale_color_manual(values=c("#333333", "#26A69A", "#F57C00"))+scale_fill_manual(values=c("#333333", "#26A69A", "#F57C00"))+
+  labs(x="Nombre d'individus", y="Richesse spécifique") +
+  ggtitle("Filet-Période d'échantillonnage")  +
+  theme(legend.position = "bottom", 
+        legend.title=element_blank(),
+        text=element_text(size=10),
+        legend.box = "vertical") 
+```
+
+Pièges - Modèle et Courbes
+
+```{r include=FALSE}
+nex2<-iNEXT(NEX2p, q=0, datatype="abundance", size=NULL, endpoint=5000, se=TRUE, conf=0.95)
+df2 <- fortify(nex2, type=1) 
+
+df2.point <- df2[df2$Method=="Observed",]
+df2.line <- df2[df2$Method!="Observed",]
+df2.line$Method <- as.factor(df2.line$Method)
+
+e2<-ggplot(df2, aes(x=x, y=y, colour=Assemblage)) + 
+  geom_point(aes(shape=Assemblage), size=3, data=df2.point) +
+  geom_line(aes(linetype=Method), lwd=1, data=df2.line) +
+  geom_ribbon(aes(ymin=y.lwr, ymax=y.upr,
+                  fill=Assemblage, colour=NULL), alpha=0.2) +
+  scale_color_manual(values=c("#333333", "#26A69A", "#F57C00"))+scale_fill_manual(values=c("#333333", "#26A69A", "#F57C00"))+
+  labs(x="Nombre d'individus", y="Richesse spécifique") +
+  ggtitle("Coupelles colorées-Période d'échantillonnage")  +
+  theme(legend.position = "bottom", 
+        legend.title=element_blank(),
+        text=element_text(size=10),
+        legend.box = "vertical") 
+```
+
+```{r echo=FALSE, paged.print=TRUE}
+e1
+e2
+```
+
+#Estimateurs de diversité **Filet selon la saison**
+
+```{r}
+ChaoRichness(NEX2)
+ChaoShannon(NEX2)
+DataInfo(NEX2)
+```
+
+```{r}
+ChaoRichness(NEX2p)
+ChaoShannon(NEX2p)
+DataInfo(NEX2p)
+```
+
+####################################################################################################### 
+
+### Rang-Abondance
+
+Tout
+
+```{r echo=FALSE}
+fipi<-bind_rows(filet,piege)
+
+histab <- sort(colSums(fipi[,-(1:5)]), decreasing = TRUE) 
+autoplot(as.AbdVector(histab), Distribution = "lnorm", col = "black")
+#possible de colorer certains points contenant "halict"
+```
+
+Distribution en log-norm? Seule qui fit
+
+> Si l'abondance de chaque espèce est proportionnelle aux ressources
+> dont elle dispose, -\>Ce mécanisme décrit assez bien un mécanisme de
+> partage successif des ressources, par exemple entre groupes d'espèces
+> de plus en plus petits, correspondant à des niches écologiques de plus
+> en plus étroites
+
+Phénomène d'emboîtement dans la méta-communauté ?
+
+###Beta de Jaccard 
+Diagramme de Venn - Filet
+```{r echo=FALSE}
+NEX3<-data.frame(NEX2)
+Fe<-nrow(subset(NEX3, NEX3$Fevrier>0))
+Ao<-nrow(subset(NEX3, NEX3$Aout>0))
+J<-nrow(subset(NEX3, NEX3$Juin>0))
+FeAo<-nrow(subset(NEX3, NEX3$Fevrier>0 & NEX3$Aout>0))
+AoJ<-nrow(subset(NEX3, NEX3$Aout>0 & NEX3$Juin>0)) 
+FeJ<-nrow(subset(NEX3, NEX3$Fevrier>0 & NEX3$Juin>0)) 
+FAJ<-nrow(subset(NEX3, NEX3$Fevrier>0 & NEX3$Aout>0 & NEX3$Juin>0))
+
+grid.newpage()
+draw.triple.venn(area1 = Fe  , area2 = Ao, area3 = J, n12 = FeAo, n23 = AoJ, n13 = FeJ, 
+    n123 = FAJ, category = c("Fevrier", "Aout", "Juin"), lty = "blank", 
+    fill = c("#FF5722","#333333" ,"#26A69A"))
+```
+
+Diagramme de Venn - Piege
+```{r echo=FALSE}
+NEX3p<-data.frame(NEX2p)
+Fep<-nrow(subset(NEX3p, NEX3p$Fevrier>0))
+Aop<-nrow(subset(NEX3p, NEX3p$Aout>0))
+Jp<-nrow(subset(NEX3p, NEX3p$Juin>0))
+FeAop<-nrow(subset(NEX3p, NEX3p$Fevrier>0 & NEX3p$Aout>0))
+AoJp<-nrow(subset(NEX3p, NEX3p$Aout>0 & NEX3p$Juin>0)) 
+FeJp<-nrow(subset(NEX3p, NEX3p$Fevrier>0 & NEX3p$Juin>0)) 
+FAJp<-nrow(subset(NEX3p, NEX3p$Fevrier>0 & NEX3p$Aout>0 & NEX3p$Juin>0))
+
+grid.newpage()
+draw.triple.venn(area1 = Fep  , area2 = Aop, area3 = Jp, n12 = FeAop, n23 = AoJp, n13 = FeJp, 
+    n123 = FAJp, category = c("Fevrier", "Aout", "Juin"), lty = "blank", 
+    fill = c("#FF5722","#333333" ,"#26A69A"))
+```
+
+### Traitement des données
+
+*Préparation des données pour les calculs, conservation uniquement des
+"numeric"*
+
+```{r include=FALSE}
+filetx<-subset(filet[,-(1:5)])
+piegex<-subset(piege[,-(1:5)])
+
+summary(filetx)
+summary(piegex)
+
+lapply(filetx, as.numeric)
+lapply(piegex, as.numeric)
+```
+
+Le nombre d'individus pour chaque espèce selon piège/filet
+
+```{r message=FALSE, include=FALSE}
+filetabu<-apply(filetx,2,sum)
+filetabu
+piegeabu<-apply(piegex,2,sum)
+piegeabu
+```
+
+L'abondance d'insectes par arbre selon piège/filet
+
+```{r message=FALSE}
+filet$norga<-apply(filetx,1,sum)
+filet$norga
+
+piege$norga<-apply(piegex,1,sum)
+piege$norga
+```
+
+```{r}
+l<-function(x){
+  x<-length(x[x!=0])
+  }
+filet$rspe<-apply(filetx,1,l)
+filet$rspe
+
+piege$rspe<-apply(piegex,1,l)
+piege$rspe
+```
+
+**Tableau de synthèse (export en csv mieux)**
+
+```{r include=FALSE}
+syntfilet<-subset(filet,select=c(Saison , identifiant_arbre,site,date,ordre, rspe, norga))
+syntfilet$Type<-rep("Filet", 172)
+syntpiege<-subset(piege,select=c(Saison, identifiant_arbre,site,date,ordre, rspe, norga))
+syntpiege$Type<-rep("Piege", 27)
+
+synt<-bind_rows(syntfilet, syntpiege)
+```
+
+```{r include=FALSE}
+#write.csv(x=synt,file = "synt.csv")
+```
+
+
+
+
+
+
+###Analyses statstiques Partie 2
+spécifique et d'abondance selon les méthodes des pièges et des filets
+pour chaque saison et l'effet saison / site
+
+```{r include=FALSE}
+# https://pmarchand1.github.io/ECL8202/notes_cours/05-Modeles_generalises_mixtes.html#exemple 
+library(lme4)
+flor$floraison<-as.factor(flor$floraison)
+
+syntfilet<- mutate(syntfilet, saison = as.factor(Saison), 
+               site = as.factor(site))
+syntfilet<-left_join(syntfilet,flor,by="identifiant_arbre")
+
+syntpiege<- mutate(syntpiege, saison = as.factor(Saison), 
+               site = as.factor(site))
+syntpiege<-left_join(syntpiege,flor,by="identifiant_arbre")
+
+
+syntfiletc<-syntfilet[,(2:7)]
+syntfiletc<-syntfiletc[,-(2:4)]
+syntfiletc<-aggregate( . ~ identifiant_arbre, syntfiletc, sum)
+syntfiletn<-syntfilet[,-(4:10)]
+syntfiletn$site<-as.character(syntfiletn$site)
+syntfiletn<-aggregate( . ~ identifiant_arbre, syntfiletn, max)
+syntfilet0<-left_join(syntfiletc,syntfiletn, by="identifiant_arbre")
+
+syntpiegec<-syntpiege[,(2:7)]
+syntpiegec<-syntpiegec[,-(2:4)]
+syntpiegec<-aggregate( . ~ identifiant_arbre, syntpiegec, sum)
+syntpiegen<-syntpiege[,-(4:10)]
+syntpiegen$site<-as.character(syntpiegen$site)
+syntpiegen<-aggregate( . ~ identifiant_arbre, syntpiegen, max)
+syntpiege0<-left_join(syntpiegec,syntpiegen, by="identifiant_arbre")
+
+#syntfilet0 et syntpiege 0 à refaire pour les graphiques car sinon : faux
+```
+
+*Filet - Richesse spécifique*
+
+```{r echo=FALSE}
+library(ggplot2)
+colorst <- c("#333333","#FF6F00","#C0CA33")
+ggplot(syntfilet0, aes(x=Saison, y=rspe,facet=site, color=site)) + 
+geom_point(shape=18,size=3, alpha=0.25, position=position_dodge(width=0.3),aes(ymin=rspe-sd(rspe), ymax=rspe+sd(rspe)))+
+ theme_bw() + scale_color_manual(values=colorst) +stat_summary(fun.data=mean_sdl, fun.args = list(mult = 1), geom="pointrange", shape=19, size=1,alpha=1,position=position_dodge(width=0.3)) + labs(x = "Saison", y = "Richesse spécifique", fill="Site") +
+          coord_cartesian(ylim = c(0, 40))+
+    ggtitle("Filet - Richesse spécifique")  +
+ theme(axis.text.y = element_text(face="bold",colour = "black", size = 13),
+    axis.text.x = element_text(face="bold",colour = "black", size = 13), 
+    legend.text = element_text(size = 13, colour ="black"))
+```
+
+```{r}
+glma<-glmer(rspe ~ site*Saison+(1|ordre), data = syntfilet, family=poisson, nAGQ=2) #Estimation des paramètres du modèle par la Quadrature de Gauss-Hermite (Bolker, 2008) 
+summary(glma)
+Anova(glma, type=3, method="chisq") #methode chis2 car glmer et type 3 car plan déséquilibré et présence d'une interaction
+
+#Test des résidus
+library(DHARMa)
+plot(simulateResiduals(glma))
+
+library(MuMIn) #Détermination du r2
+r.squaredGLMM(glma) #R2m représente le r avec seulement les effets fixes, et r2c il y a les effets de groupes
+#trigamma la plus fiable
+```
+
+TEST - PAIRWISE
+
+```{r}
+emta1 <- lsmeans(glma, ~ site, by="Saison")
+pairs(emta1)
+
+emta2 <- lsmeans(glma, ~ Saison)
+pairs(emta2)
+```
+
+*Filet - Abondance*
+
+```{r echo=FALSE}
+library(ggplot2)
+ggplot(syntfilet0, aes(x=Saison, y=norga,facet=site, color=site)) + 
+geom_point(shape=18,size=3, alpha=0.25, position=position_dodge(width=0.3),aes(ymin=norga-sd(norga), ymax=norga+sd(norga)))+
+ theme_bw() + scale_color_manual(values=colorst) +stat_summary(fun.data=mean_sdl, fun.args = list(mult = 1), geom="pointrange", shape=19, size=1,alpha=1,position=position_dodge(width=0.3)) + labs(x = "Saison", y = "Abondance", fill="Site") +
+    ggtitle("Filet - Abondance")  +
+            coord_cartesian(ylim = c(0, 80))+
+ theme(axis.text.y = element_text(face="bold",colour = "black", size = 13),
+    axis.text.x = element_text(face="bold",colour = "black", size = 13), 
+    legend.text = element_text(size = 13, colour ="black"))
+```
+
+```{r}
+glmb<-glmer(norga ~ site*Saison+(1+Saison+site|ordre), data = syntfilet, family=poisson, nAGQ=1) #Estimation des paramètres du modèle par l'approximation de Laplace(Bolker, 2008) -> trop de facteurs aléatoires nécessaires au calcul du modèle pour faire une quadrature de Gausse-Hermite (impossible pour la fonction si plus de 1 et en général si + de 2,3)
+summary(glmb)
+Anova(glmb, type=3, method="chisq") #methode chis2 car glmer et type 3 car plan déséuilibré
+
+#Test des résidus
+library(DHARMa)
+plot(simulateResiduals(glmb))
+
+library(MuMIn) #Détermination du r2
+r.squaredGLMM(glmb) #R2m représente le r avec seulement les effets fixes, et r2c il y a les effets de groupes
+#trigamma la plus fiable
+```
+
+PAIRWISE
+
+```{r}
+emtb1 <- lsmeans(glmb, ~ site, by="Saison")
+pairs(emtb1)
+
+emtb2 <- lsmeans(glmb, ~ Saison) #changer l'écriture de la formule
+pairs(emtb2)
+```
+
+*Piege - Richesse spécifique*
+
+```{r echo=FALSE}
+library(ggplot2)
+ggplot(syntpiege0, aes(x=Saison, y=rspe,facet=site, color=site)) + 
+geom_point(shape=18,size=3, alpha=0.25, position=position_dodge(width=0.4),aes(ymin=rspe-sd(rspe), ymax=rspe+sd(rspe)))+
+ theme_bw() + scale_color_manual(values=colorst) +stat_summary(fun.data=mean_sdl, fun.args = list(mult = 1), geom="pointrange", shape=19, size=1,alpha=1,position=position_dodge(width=0.4)) + labs(x = "Saison", y = "Richesse spécifique", fill="Site") +
+    ggtitle("Pieges - Richesse spécifique")  +            coord_cartesian(ylim = c(0, 50))+
+ theme(axis.text.y = element_text(face="bold",colour = "black", size = 13),
+    axis.text.x = element_text(face="bold",colour = "black", size = 13), 
+    legend.text = element_text(size = 13, colour ="black"))
+```
+
+```{r}
+glmc<-glmer(rspe ~ site*Saison+(1|ordre), data = syntpiege, family=poisson, nAGQ=2)
+summary(glmc)
+Anova(glmc, type=3, method="chisq")
+
+#Test des résidus
+library(DHARMa)
+plot(simulateResiduals(glmc))
+
+library(MuMIn) #Détermination du r2
+r.squaredGLMM(glmc) #R2m représente le r avec seulement les effets fixes, et r2c il y a les effets de groupes
+#trigamma la plus fiable
+```
+
+TEST - PAIRWISE
+
+```{r}
+emtc1 <- lsmeans(glmc, ~ site, by="Saison")
+pairs(emtc1)
+
+emtc2 <- lsmeans(glmc, ~ Saison)
+pairs(emtc2)
+```
+
+*Piege - Abondance*
+
+```{r echo=FALSE}
+ggplot(syntpiege0, aes(x=Saison, y=norga,facet=site, color=site)) + 
+geom_point(shape=18,size=3, alpha=0.25, position=position_dodge(width=0.4),aes(ymin=norga-sd(norga), ymax=norga+sd(norga)))+
+ theme_bw() + scale_color_manual(values=colorst) +stat_summary(fun.data=mean_sdl, fun.args = list(mult = 1), geom="pointrange", shape=19, size=1,alpha=1,position=position_dodge(width=0.4)) + labs(x = "Saison", y = "Abondance", fill="Site") +
+    ggtitle("Pieges - Abondance")  +
+    coord_cartesian(ylim = c(0, 250))+
+ theme(axis.text.y = element_text(face="bold",colour = "black", size = 13),
+    axis.text.x = element_text(face="bold",colour = "black", size = 13), 
+    legend.text = element_text(size = 13, colour ="black"))
+```
+
+```{r}
+glmd<-glmer(norga ~ site*Saison+(1+site+Saison|ordre), data = syntpiege, family=poisson)
+summary(glmd)
+Anova(glmd, type=3, method="chisq")
+
+#Test des résidus
+library(DHARMa)
+plot(simulateResiduals(glmd))
+
+library(MuMIn) #Détermination du r2
+r.squaredGLMM(glmd) #R2m représente le r avec seulement les effets fixes, et r2c il y a les effets de groupes
+#trigamma la plus fiable
+```
+
+TEST - PAIRWISE
+
+```{r}
+emtd1 <- lsmeans(glmd, ~ site, by="Saison")
+pairs(emtd1)
+
+emtd2 <- lsmeans(glmd, ~ Saison)
+pairs(emtd2)
+```
+
+Tester l'ajustement du modèle avec le plus faible AIC :
+
+```{r}
+library(AICcmodavg)
+#aictab(list(glm1, glm1f))
+```
+
+Floraison en facteur aléatoire **La relation entre rspe et site peut
+varier selon la saison par contre**
+
+TEST - PAIRWISE
+
+```{r}
+library(emmeans)
+emtd1 <- lsmeans(glmd, ~ site, by="Saison")
+pairs(emta1)
+
+emtd2 <- lsmeans(glmd, ~ Saison)
+pairs(emtd2)
+```
+
+###Analyses multivariées PCoA /Ok On veut montrer la différence de
+communauté entre saisons pour les Insectes en général, cf ensuite pour
+faire selon Ordre -\> et voir si on fait aussi des PCo pour l'effet site
+ou on se contente de la Permanova
+
+<https://rpubs.com/hafezahmad/948799>
+\################################################################################
+
+#Partie 1 : Saison 
+Création des matrices Méthode Bray-Curtis
+-\> vegdist + correction de hellinger -\> wcmdscale, add lingoes
+-\>adonis2, 5000 permutations 
+
+*Filet*
+
+```{r include=FALSE}
+library(vegan)
+library(ape)
+#Matrice de distance de Bray-Curtis
+vegw<-filetall[,-(1:5)]
+filetall$Saison<-as.factor(filetall$Saison)
+filetall$site<-as.factor(filetall$site)
+rownames(vegw)<-filetall$identifiant_arbre
+rownames(filetall)<-filetall$identifiant_arbre
+
+vg.bray <- vegdist(vegw, method = "bray",na.rm = TRUE)
+vgw <- decostand(vg.bray, method = "hellinger")
+
+# PCoA
+pcoa <- wcmdscale(vgw,2, add = "lingoes")
+```
+
+*Piege*
+
+```{r include=FALSE}
+#Matrice de distance de Bray-Curtis
+vegx<-piegeall[,-(1:5)]
+piegeall$Saison<-as.factor(piegeall$Saison)
+piegeall$site<-as.factor(piegeall$site)
+rownames(vegx)<-piegeall$identifiant_arbre
+rownames(piegeall)<-piegeall$identifiant_arbre
+
+vg.brayx <- vegdist(vegx, method = "bray",na.rm = TRUE)
+vgx<- decostand(vg.brayx, method = "hellinger")
+
+# PCoA
+pcoax <- wcmdscale(vgx,2, add = "lingoes")
+```
+
+*Tout*
+
+```{r include=FALSE}
+filetall$method<-rep("filet",nrow(filetall))
+piegeall$method<-rep("piege",nrow(piegeall))
+all<-bind_rows(filetall,piegeall)
+
+#Matrice de distance de Bray-Curtis
+vegmet<-all[,-(1:5)]
+vegmet<-vegmet[,-402]
+all$method<-as.factor(all$method)
+rownames(vegmet)<-c(1:nrow(all))
+rownames(all)<-c(1:nrow(all))
+
+vgmet.bray <- vegdist(vegmet, method = "bray",na.rm = TRUE)
+vgmet <- decostand(vgmet.bray, method = "hellinger")
+
+# PCoA
+pcoamet <- wcmdscale(vgmet,2, add = "lingoes")
+```
+
+```{r}
+colmet<-c("#CDDC39","#000000")
+ordiplot(pcoamet,display="sites",type="n")
+points (pcoa, col = colmet[all$method], pch=18, cex=2)
+legend("bottomright", legend=levels(all$method), pt.bg=colmet, pt.cex=1.2, y.intersp=.7,x.intersp=.7, pch = 21, cex=1)
+title("PCoA.Method")
+```
+
+
+
+
+*PCoA.Filet-Saison*
+```{r echo=FALSE}
+#Run tout ensemble
+colssa<-c("#333333","#FF6F00","#26A69A")
+ordiplot(pcoa,display="sites",type="n")
+points (pcoa, col = colssa[filetall$Saison], pch=16, cex=2)
+legend("bottomright", legend=levels(filetall$Saison), pt.bg=colssa, pt.cex=1.2, y.intersp=.7,x.intersp=.7, pch = 21, cex=1)
+title("PCoA.Filet-Saison")
+```
+
+*PCoA.Piege-Saison*
+```{r echo=FALSE}
+#Run tout ensemble
+ordiplot(pcoax,display="sites",type="n")
+points (pcoax, col = colssa[piegeall$Saison], pch=17, cex=2)
+legend("bottomright", legend=levels(piegeall$Saison), pt.bg=colssa, pt.cex=1.2, y.intersp=.7,x.intersp=.7, pch = 21, cex=1)
+title("PCoA.Piege-Saison")
+```
+
+*Permanova.Filet - Saison - Site*
+
+```{r echo=FALSE}
+#Supprimer les lignes vides
+m_filet<-filetall[,1:406]
+
+m_filet$nul<-apply(m_filet[,6:406],1,sum)
+m_filet<-subset(m_filet,m_filet$nul !=0)
+
+# Résultats
+allf<-adonis2(m_filet[,6:406]~as.factor(m_filet$Saison)*as.factor(m_filet$site), data=m_filet, permutations=5000)
+allf
+```
+
+```{r}
+pairwise.adonis <- function(resp,fact,p.method="fdr") {
+if (nrow(resp)!=length(fact)) {
+stop(paste("'",deparse(substitute(resp)),"' and '",deparse(substitute(fact)),
+"lengths differ",sep=""))
+}
+if (!is.factor(fact)) {fact <- factor(fact)}
+data.name <- paste(deparse(substitute(resp))," and ",deparse(substitute(fact)),sep="")
+fun.p <- function(i,j) {
+resp2 <- resp[as.numeric(fact)%in%c(i,j),]
+fact2 <- droplevels(fact[as.numeric(fact)%in%c(i,j)])
+adonis(resp2~fact2)$aov.tab[1,"Pr(>F)"]
+}
+multcomp <- pairwise.table(fun.p,levels(fact),p.adjust.method=p.method)
+result <- list(method="permutational MANOVAs",data.name=data.name,p.value=multcomp,p.adjust.method=p.method)
+class(result) <- "pairwise.htest"
+return(result)
+}
+```
+
+Pairwise permanova - Filet
+```{r}
+pairwise.adonis (resp = m_filet[,6:406], fact = as.factor(m_filet$Saison), p.method="fdr")
+```
+
+
+
+*Permanova.Piege - Saison*
+
+```{r echo=FALSE}
+#Supprimer les lignes vides
+m_piege<-piegeall[,1:406]
+
+m_piege$nul<-apply(m_piege[,6:406],1,sum)
+m_piege<-subset(m_piege,m_piege$nul !=0)
+
+# Résultats
+allp<-adonis2(m_piege[,6:406]~as.factor(m_piege$Saison)*as.factor(m_piege$site), data=m_piege,strata=m_piege$site, permutations=5000)
+allp
+```
+
+Pairwise permanova - Piege
+```{r}
+pairwise.adonis (resp = m_piege[,6:406], fact = as.factor(m_piege$Saison), p.method="fdr")
+```
+
+#Partie 2 : Effet restauration 
+
+```{r include=FALSE}
+#Matrice de distance de Bray-Curtis
+filetallj<-subset(filetall,filetall$Saison=="Juin")
+filetalljn<-filetallj[,-(1:5)]
+filetalljn<-filetalljn[,-402]
+filetallj$site<-as.factor(filetallj$site)
+
+rownames(filetalljn)<-filetallj$identifiant_arbre
+  
+filetallj.bray <- vegdist(filetalljn, method = "bray",na.rm = TRUE)
+filetallj.c<- decostand(filetallj.bray , method = "hellinger")
+#------------------------------------------------------------
+filetalla<-subset(filetall,filetall$Saison=="Aout")
+filetallan<-filetalla[,-(1:5)]
+filetallan<-filetallan[,-402]
+filetalla$site<-as.factor(filetalla$site)
+
+rownames(filetallan)<-filetalla$identifiant_arbre
+  
+filetalla.bray <- vegdist(filetallan, method = "bray",na.rm = TRUE)
+filetalla.c<- decostand(filetalla.bray , method = "hellinger")
+#------------------------------------------------------------
+filetallf<-subset(filetall,filetall$Saison=="Fevrier")
+filetallfn<-filetallf[,-(1:5)]
+filetallfn<-filetallfn[,-402]
+filetallf$site<-as.factor(filetallf$site)
+
+rownames(filetallfn)<-filetallf$identifiant_arbre
+  
+filetallf.bray <- vegdist(filetallfn, method = "bray",na.rm = TRUE)
+filetallf.c<- decostand(filetallf.bray , method = "hellinger")
+
+# PCoA
+filetallj.pco <- wcmdscale(filetallj.c,2, add = "lingoes")
+filetalla.pco <- wcmdscale(filetalla.c,2, add = "lingoes")
+filetallf.pco <- wcmdscale(filetallf.c,2, add = "lingoes")
+```
+
+Création des matrices : PCoA Piege
+
+```{r include=FALSE}
+#Matrice de distance de Bray-Curtis
+piegeallj<-subset(piegeall,piegeall$Saison=="Juin")
+piegealljn<-piegeallj[,-(1:5)]
+piegealljn<-piegealljn[,-402]
+piegeallj$site<-as.factor(piegeallj$site)
+
+rownames(piegealljn)<-piegeallj$identifiant_arbre
+  
+piegeallj.bray <- vegdist(piegealljn, method = "bray",na.rm = TRUE)
+piegeallj.c<- decostand(piegeallj.bray , method = "hellinger")
+#------------------------------------------------------------
+piegealla<-subset(piegeall,piegeall$Saison=="Aout")
+piegeallan<-piegealla[,-(1:5)]
+piegeallan<-piegeallan[,-402]
+piegealla$site<-as.factor(piegealla$site)
+
+rownames(piegeallan)<-piegealla$identifiant_arbre
+  
+piegealla.bray <- vegdist(piegeallan, method = "bray",na.rm = TRUE)
+piegealla.c<- decostand(piegealla.bray , method = "hellinger")
+#------------------------------------------------------------
+piegeallf<-subset(piegeall,piegeall$Saison=="Fevrier")
+piegeallfn<-piegeallf[,-(1:5)]
+piegeallfn<-piegeallfn[,-402]
+piegeallf$site<-as.factor(piegeallf$site)
+rownames(piegeallfn)<-piegeallf$identifiant_arbre
+  
+piegeallf.bray <- vegdist(piegeallfn, method = "bray",na.rm = TRUE)
+piegeallf.c<- decostand(piegeallf.bray , method = "hellinger")
+
+# PCoA
+piegeallj.pco <- wcmdscale(piegeallj.c,2, add = "lingoes")
+piegealla.pco <- wcmdscale(piegealla.c,2, add = "lingoes")
+piegeallf.pco <- wcmdscale(piegeallf.c,2, add = "lingoes")
+```
+
+*Juin* PCoA. Filet - Site // Piege - Site (vérifier si légendes sur les
+bons points)
+
+```{r echo=FALSE}
+#Run tout ensemble
+ordiplot(filetallj.pco,display="sites",type="n")
+colssi <- c("#333333","#FF6F00","#C0CA33")
+points (filetallj.pco, col = colssi[filetallj$site], pch=16, cex=2)
+legend("bottomright", legend=levels(filetallj$site), pt.bg=colssi, pt.cex=1.2, y.intersp=.7,x.intersp=.7, pch = 21, cex=1)
+title("PCoA.Filet-Site-Juin")
+
+ordiplot(piegeallj.pco,display="sites",type="n")
+points (piegeallj.pco, col = colssi[piegeallj$site], pch=17, cex=2)
+legend("bottomright", legend=levels(piegeallj$site), pt.bg=colssi, pt.cex=1.2, y.intersp=.7,x.intersp=.7, pch = 21, cex=1)
+title("PCoA.Piege-Site-Juin")
+```
+
+*Aout*
+
+```{r echo=FALSE}
+#Run tout ensemble
+ordiplot(filetalla.pco,display="sites",type="n")
+points (filetalla.pco, col = colssi[filetalla$site], pch=16, cex=2)
+legend("bottomright", legend=levels(filetalla$site), pt.bg=colssi, pt.cex=1.2, y.intersp=.7,x.intersp=.7, pch = 21, cex=1)
+title("PCoA.Filet-Site-Aout")
+
+ordiplot(piegealla.pco,display="sites",type="n")
+points (piegealla.pco, col = colssi[piegealla$site], pch=17, cex=2)
+legend("bottomright", legend=levels(piegealla$site), pt.bg=colssi, pt.cex=1.2, y.intersp=.7,x.intersp=.7, pch = 21, cex=1)
+title("PCoA.Piege-Site-Aout")
+```
+
+*Février*
+
+```{r echo=FALSE}
+#Run tout ensemble
+ordiplot(filetallf.pco,display="sites",type="n")
+points (filetallf.pco, col = colssi[filetallf$site], pch=16, cex=2)
+legend("bottomright", legend=levels(filetallf$site), pt.bg=colssi, pt.cex=1.2, y.intersp=.7,x.intersp=.7, pch = 21, cex=1)
+title("PCoA.Filet-Site-Février")
+
+ordiplot(piegeallf.pco,display="sites",type="n")
+points (piegeallf.pco, col = colssi[piegeallf$site], pch=17, cex=2)
+legend("bottomright", legend=levels(piegeallf$site), pt.bg=colssi, pt.cex=1.2, y.intersp=.7,x.intersp=.7, pch = 21, cex=1)
+title("PCoA.Piege-Site-Février")
+```
+
+PERMANOVA. Filet - Aout
+
+```{r echo=FALSE}
+m_fileta<-subset(m_filet,m_filet$Saison=="Aout")
+m_fileta$nul<-apply(m_fileta[,6:406],1,sum)
+m_fileta<-subset(m_fileta,m_fileta$nul !=0)
+
+# Résultats
+filet.diva<-adonis2(m_fileta[,6:406]~as.factor(m_fileta$site), data=m_fileta, permutations=5000)
+filet.diva
+pairwise.adonis (resp = m_fileta[,6:406], fact = as.factor(m_fileta$site), p.method="fdr")
+```
+
+PERMANOVA - Piege - Aout
+
+```{r echo=FALSE}
+#Supprimer les lignes vides
+m_piege<-piegeall[,1:406]
+m_piegea<-subset(m_piege,m_piege$Saison=="Aout")
+m_piegea$nul<-apply(m_piegea[,6:406],1,sum)
+m_piegea<-subset(m_piegea,m_piegea$nul !=0)
+
+# Résultats
+piege.diva<-adonis2(m_piegea[,6:406]~as.factor(m_piegea$site), data=m_piegea, permutations=5000)
+piege.diva
+pairwise.adonis (resp = m_piegea[,6:406], fact = as.factor(m_piegea$site), p.method="fdr")
+```
+
+
+PERMANOVA - Filet - Février
+
+```{r echo=FALSE}
+m_filetf<-subset(m_filet,m_filet$Saison=="Fevrier")
+m_filetf$nul<-apply(m_filetf[,6:406],1,sum)
+m_filetf<-subset(m_filetf,m_filetf$nul !=0)
+
+# Résultats
+filet.divf<-adonis2(m_filetf[,6:406]~as.factor(m_filetf$site), data=m_filetf, permutations=5000)
+filet.divf
+pairwise.adonis (resp = m_filetf[,6:406], fact = as.factor(m_filetf$site), p.method="fdr")
+```
+
+\*PERMANOVA - Piege - Février
+
+```{r echo=FALSE}
+m_piegef<-subset(m_piege,m_piege$Saison=="Fevrier")
+m_piegef$nul<-apply(m_piegef[,6:406],1,sum)
+m_piegef<-subset(m_piegef,m_piegef$nul !=0)
+
+# Résultats
+piege.divf<-adonis2(m_piegef[,6:406]~as.factor(m_piegef$site), data=m_piegef, permutations=5000)
+piege.divf
+pairwise.adonis (resp = m_piegef[,6:406], fact = as.factor(m_piegef$site), p.method="fdr")
+```
+PERMANOVA - Filet - Juin
+
+```{r echo=FALSE}
+m_filetj<-subset(m_filet,m_filet$Saison=="Juin")
+m_filetj$nul<-apply(m_filetj[,6:406],1,sum)
+m_filetj<-subset(m_filetj,m_filetj$nul !=0)
+
+# Résultats
+filet.divj<-adonis2(m_filetj[,6:406]~as.factor(m_filetj$site), data=m_filetj, permutations=5000)
+filet.divj
+pairwise.adonis (resp = m_filetj[,6:406], fact = as.factor(m_filetj$site), p.method="fdr")
+```
+
+PERMANOVA - Piege - Juin
+
+```{r echo=FALSE}
+m_piegej<-subset(m_piege,m_piege$Saison=="Juin")
+m_piegej$nul<-apply(m_piegej[,6:406],1,sum)
+m_piegej<-subset(m_piegej,m_piegej$nul !=0)
+
+# Résultats
+piege.divj<-adonis2(m_piegej[,6:406]~as.factor(m_piegej$site), data=m_piegej, permutations=5000)
+piege.divj
+pairwise.adonis (resp = m_piegej[,6:406], fact = as.factor(m_piegej$site), p.method="fdr")
+```
+
+Peu de différences sur les PCoA mais significatif en Permanova ?
+Regarder si bonnes représentations avec deux axes, demander Magali
+
+#Tableau de diversité & Classification
+
+```{r}
+test<-read.csv("test.csv",header = T, row.names = NULL,sep = ";")
+test2<-read.csv("test2.csv",header = T, row.names = NULL,sep = ";")
+
+library(dplyr)
+test0<-inner_join(test,test2,by="morphotype")
+```
+
+Abondances des espèces
+
+```{r}
+fipia<-fipi[,(1:406)]
+fipix<-fipia[,6:406]
+fipiabu<-apply(fipix,2,sum)
+fipiabu<-data.frame(fipiabu)
+fipiabu$morphotype<-rownames(fipiabu)
+```
+
+Fusion
+
+```{r}
+test0<-left_join(test0,fipiabu,by="morphotype")
+```
+
+#Informations 
+
+```{r}
+ggplot(synt) +
+  aes(x = site, y = norga, fill = ordre) +
+  geom_col() +
+  scale_fill_manual(
+    values = c(Autres = "#FFFFF0",
+    Coleoptera = "#FF5722",
+    Diptera = "#CDDC39",
+    Hymenoptera = "#26A69A")
+  ) +
+  theme_dark() +
+  facet_wrap(vars(Saison)) + labs(x = "Saison", y = "Richesse spécifique", fill="Site") +ggtitle("Abondance-Tout")  +
+ theme(axis.text.y = element_text(face="bold",colour = "black", size = 13),
+    axis.text.x = element_text(face="bold",colour = "black", size = 13), 
+    legend.text = element_text(size = 13, colour ="black"))
+```
+```{r echo=FALSE}
+library("entropart")
+
+fipia<-subset(fipi, fipi$Saison=="Aout")
+
+fipif<-subset(fipi, fipi$Saison=="Fevrier")
+
+fipij<-subset(fipi, fipi$Saison=="Juin")
+
+fipia<-fipia[,-4]
+fipia<-fipia[,-(1:2)]
+fipiac<-aggregate( . ~ site+ordre, fipia, sum)
+
+fipif<-fipif[,-4]
+fipif<-fipif[,-(1:2)]
+fipifc<-aggregate( . ~ site+ordre, fipif, sum)
+
+fipij<-fipij[,-4]
+fipij<-fipij[,-(1:2)]
+fipijc<-aggregate( . ~ site+ordre, fipij, sum)
+
+fipinew<-bind_rows(fipiac,fipifc)
+fipinew<-bind_rows(fipinew,fipijc)
+
+fipinew$saison<-c(rep("Aout",12),rep("Fevrier",12),rep("Juin",12))
+```
+
+```{r}
+fipinew$rspe<-apply(fipinew[,3:403],1,l)
+fipinew$rspe
+```
+
+
+```{r}
+ggplot(fipinew) +
+  aes(x = site, y = rspe, fill = ordre) +
+  geom_col() +
+  scale_fill_manual(
+    values = c(Autres = "#FFFFF0",
+    Coleoptera = "#FF5722",
+    Diptera = "#CDDC39",
+    Hymenoptera = "#26A69A")
+  ) +
+  theme_dark() +
+  facet_wrap(vars(saison)) + labs(x = "Saison", y = "Richesse spécifique", fill="Site") +ggtitle("Richesse spécifique-Tout")  +
+ theme(axis.text.y = element_text(face="bold",colour = "black", size = 13),
+    axis.text.x = element_text(face="bold",colour = "black", size = 13), 
+    legend.text = element_text(size = 13, colour ="black"))
+```
+
+
+```{r include=FALSE}
+all<-subset(NEX3, NEX3$Fevrier>0 & NEX3$Aout>0 & NEX3$Juin>0)
+allp<-subset(NEX3p, NEX3p$Fevrier>0 & NEX3p$Aout>0 & NEX3p$Juin>0)
+```
+
+```{r}
+fipinewbis<-fipinew[,-(3:403)]
+```
+
+Au piège, rien d'intéressant mais au filet : halict 17, halict 1,2,3
+sont présentes sur les trois saisons.
+
+Chercher ces espèces avec data pièges
+
+*Espèces les plus abondantes*
+
+```{r echo=FALSE}
+library(dplyr)
+more<-apply(filetx,2,sum)
+head<-more[order(more, decreasing = TRUE)]
+
+moreall<-apply(fipi[6:406],2,sum)
+headall<-moreall[order(moreall, decreasing = TRUE)]
+headall
+```
+
+**Tableau**
+
+```{r}
+test0
+test0bis<-subset(test0,test0$fipiabu != 0)
+unique(test0$morphotype[test0$superfam=="Tephritoidea"])
+unique(test0bis$morphotype[test0bis$ordre=="Diptera"])
+
+
+```
+
+```{r}
+test0 %>%
+ filter(ordre %in% c("Coleoptera", "Diptera", "Hymenoptera", "Hemiptera")) %>%
+ ggplot() +
+  aes(x = superfam, y = fipiabu, fill = ordre) +
+  geom_col() +
+  scale_fill_hue(direction = 1) +
+  theme_minimal()
+```
+
+#Pollinisateurs
+
+```{r}
+poll = subset(test0, superfam == "Apoidea"
+              | famille == "Chrysididae" | famille == "Bombylidae" | famille == "Mythicomyiidae"| famille == "Chloropidae" | famille == "Syrphidae" | famille == "Sepsidae"|famille=="Pompilidae"|famille == "Sepsidae"|famille=="Buprestidae" |famille=="Dermestidae"|famille=="Lycidae"|famille=="Scoliidae")
+pollt<-t(poll$morphotype)
+filetpoll<-filetall
+piegepoll<-piegeall
+fpollini<-select(filetpoll, Saison, identifiant_arbre, site, date, as.vector(pollt))
+ppollini<-select(piegepoll, Saison, identifiant_arbre, site, date, as.vector(pollt))
+```
+
+```{r include=FALSE}
+fpollinix<-subset(fpollini[,-(1:5)])
+ppollinix<-subset(ppollini[,-(1:5)])
+
+summary(fpollinix)
+summary(ppollinix)
+
+lapply(fpollinix, as.numeric)
+lapply(ppollinix, as.numeric)
+```
+
+*Abondance pollinisateurs*
+
+```{r message=FALSE}
+fpollini$norga<-apply(fpollinix,1,sum)
+fpollini$norga
+
+ppollini$norga<-apply(ppollinix,1,sum)
+ppollini$norga
+```
+
+*Richesse spécifique pollinisateurs*
+
+```{r}
+l<-function(x){
+  x<-length(x[x!=0])
+  }
+fpollini$rspe<-apply(fpollinix,1,l)
+fpollini$rspe
+
+ppollini$rspe<-apply(ppollinix,1,l)
+ppollini$rspe
+```
+
+```{r}
+syntfpoll<-subset(fpollini,select=c(Saison , identifiant_arbre,site,date, rspe, norga))
+syntppoll<-subset(ppollini,select=c(Saison, identifiant_arbre,site,date, rspe, norga))
+```
+
+```{r}
+library(lme4)
+syntfpoll<- mutate(syntfpoll, saison = as.factor(Saison), 
+               site = as.factor(site))
+syntfpoll<-left_join(syntfpoll,flor,by="identifiant_arbre")
+
+syntppoll<- mutate(syntppoll, saison = as.factor(Saison), 
+               site = as.factor(site))
+syntppoll<-left_join(syntppoll,flor,by="identifiant_arbre")
+
+```
+
+```{r}
+library(ggplot2)
+#Filet
+colorpoll <- c("#333333","#FF6F00","#26A69A")
+ggplot(syntfpoll, aes(x=Saison, y=rspe,facet=site, color=site)) + 
+geom_point(shape=18,size=3, alpha=0.25, position=position_dodge(width=0.4),aes(ymin=rspe-sd(rspe), ymax=rspe+sd(rspe)))+
+ theme_bw() + scale_color_manual(values=colorpoll) +stat_summary(fun.data=mean_sdl, fun.args = list(mult = 1), geom="pointrange", shape=19, size=1,alpha=1,position=position_dodge(width=0.4)) + labs(x = "Saison", y = "Richesse spécifique", fill="Site") +
+    ggtitle("Filet - Richesse spécifique")  +
+        coord_cartesian(ylim = c(0, 15))+
+ theme(axis.text.y = element_text(face="bold",colour = "black", size = 13),
+    axis.text.x = element_text(face="bold",colour = "black", size = 13), 
+    legend.text = element_text(size = 13, colour ="black"))
+#Piege
+ggplot(syntppoll, aes(x=Saison, y=rspe,facet=site, color=site)) + 
+geom_point(shape=18,size=3, alpha=0.25, position=position_dodge(width=0.4),aes(ymin=rspe-sd(rspe), ymax=rspe+sd(rspe)))+
+ theme_bw() + scale_color_manual(values=colorpoll) +stat_summary(fun.data=mean_sdl, fun.args = list(mult = 1), geom="pointrange", shape=19, size=1,alpha=1,position=position_dodge(width=0.4)) + labs(x = "Saison", y = "Richesse spécifique", fill="Site") +
+    ggtitle("Pieges - Richesse spécifique")  +
+      coord_cartesian(ylim = c(0, 15))+
+ theme(axis.text.y = element_text(face="bold",colour = "black", size = 13),
+    axis.text.x = element_text(face="bold",colour = "black", size = 13), 
+    legend.text = element_text(size = 13, colour ="black"))
+
+
+```
+
+```{r}
+#Filet
+ggplot(syntfpoll, aes(x=Saison, y=norga,facet=site, color=site)) + 
+geom_point(shape=18,size=3, alpha=0.25, position=position_dodge(width=0.4),aes(ymin=norga-sd(norga), ymax=norga+sd(norga)))+
+ theme_bw() + scale_color_manual(values=colorpoll) +stat_summary(fun.data=mean_sdl, fun.args = list(mult = 1), geom="pointrange", shape=19, size=1,alpha=1,position=position_dodge(width=0.4)) + labs(x = "Saison", y = "Abondance", fill="Site") +
+    ggtitle("Filet - Abondance")  +
+        coord_cartesian(ylim = c(0,40))+
+ theme(axis.text.y = element_text(face="bold",colour = "black", size = 13),
+    axis.text.x = element_text(face="bold",colour = "black", size = 13), 
+    legend.text = element_text(size = 13, colour ="black"))
+#Piege
+ggplot(syntppoll, aes(x=Saison, y=norga,facet=site, color=site)) + 
+geom_point(shape=18,size=3, alpha=0.25, position=position_dodge(width=0.4),aes(ymin=norga-sd(norga), ymax=norga+sd(norga)))+
+ theme_bw() + scale_color_manual(values=colorpoll) +stat_summary(fun.data=mean_sdl, fun.args = list(mult = 1), geom="pointrange", shape=19, size=1,alpha=1,position=position_dodge(width=0.4)) + labs(x = "Saison", y = "Abondance", fill="Site") +
+    ggtitle("Pieges - Abondance")  +
+          coord_cartesian(ylim = c(0, 150))+
+ theme(axis.text.y = element_text(face="bold",colour = "black", size = 13),
+    axis.text.x = element_text(face="bold",colour = "black", size = 13), 
+    legend.text = element_text(size = 13, colour ="black"))
+
+```
+
+```{r}
+glmpol1<-glmer(rspe ~ site*Saison+(1|floraison), data = syntfpoll, family=poisson, nAGQ=2) #Estimation des paramètres du modèle par la Quadrature de Gauss-Hermite (Bolker, 2008) 
+summary(glmpol1)
+Anova(glmpol1, type=3, method="chisq") #methode chis2 car glmer et type 3 car plan déséquilibré et présence d'une interaction
+
+#Test des résidus
+library(DHARMa)
+plot(simulateResiduals(glmpol1))
+
+library(MuMIn) #Détermination du r2
+r.squaredGLMM(glmpol1) #R2m représente le r avec seulement les effets fixes, et r2c il y a les effets de groupes
+#trigamma la plus fiable
+```
+
+TEST - PAIRWISE - Richesse spécifique - filet
+
+```{r}
+emtpol1 <- lsmeans(glmpol1, ~ site, by="Saison")
+pairs(emtpol1)
+```
+
+```{r}
+glmpol2<-glmer(rspe ~ site*Saison+(1|floraison), data = syntppoll, family=poisson, nAGQ=2) #Estimation des paramètres du modèle par la Quadrature de Gauss-Hermite (Bolker, 2008) 
+summary(glmpol2)
+Anova(glmpol2, type=3, method="chisq") #methode chis2 car glmer et type 3 car plan déséquilibré et présence d'une interaction
+
+#Test des résidus
+library(DHARMa)
+plot(simulateResiduals(glmpol2))
+
+library(MuMIn) #Détermination du r2
+r.squaredGLMM(glmpol2) #R2m représente le r avec seulement les effets fixes, et r2c il y a les effets de groupes
+#trigamma la plus fiable
+```
+
+TEST - PAIRWISE - Richesse spécifique - piege
+
+```{r}
+emtpol3<- lsmeans(glmpol2, ~ site, by="Saison")
+pairs(emtpol3)
+
+emtpol4 <- lsmeans(glmpol2, ~ Saison)
+pairs(emtpol4)
+```
+
+Filet - Abondance
+
+```{r}
+glmpol3<-glmer(norga ~ site*Saison+(1|floraison), data = syntfpoll, family=poisson, nAGQ=2) #Estimation des paramètres du modèle par la Quadrature de Gauss-Hermite (Bolker, 2008) 
+summary(glmpol3)
+Anova(glmpol3, type=3, method="chisq") #methode chis2 car glmer et type 3 car plan déséquilibré et présence d'une interaction
+
+#Test des résidus
+library(DHARMa)
+plot(simulateResiduals(glmpol3))
+
+library(MuMIn) #Détermination du r2
+r.squaredGLMM(glmpol3) #R2m représente le r avec seulement les effets fixes, et r2c il y a les effets de groupes
+#trigamma la plus fiable
+```
+
+```{r}
+emtpol5<- lsmeans(glmpol3, ~ site, by="Saison")
+pairs(emtpol5)
+
+emtpol6 <- lsmeans(glmpol3, ~ Saison)
+pairs(emtpol6)
+```
+
+piege abondance
+
+```{r}
+glmpol4<-glmer(norga ~ site*Saison+(1|floraison), data = syntppoll, family=poisson, nAGQ=2) #Estimation des paramètres du modèle par la Quadrature de Gauss-Hermite (Bolker, 2008) 
+summary(glmpol4)
+Anova(glmpol4, type=3, method="chisq") #methode chis2 car glmer et type 3 car plan déséquilibré et présence d'une interaction
+
+#Test des résidus
+library(DHARMa)
+plot(simulateResiduals(glmpol4))
+
+library(MuMIn) #Détermination du r2
+r.squaredGLMM(glmpol4) #R2m représente le r avec seulement les effets fixes, et r2c il y a les effets de groupes
+#trigamma la plus fiable
+```
+
+```{r}
+emtpol7<- lsmeans(glmpol4, ~ site, by="Saison")
+pairs(emtpol7)
+
+emtpol8 <- lsmeans(glmpol4, ~ Saison)
+pairs(emtpol8)
+```
+#Réseaux bipartites
+
+**Août**
+```{r echo=FALSE}
+library("bipartite")
+
+rsa<-subset(fpollini, fpollini$Saison=="Aout")
+rsa<-rsa[1:75]
+noms<-colnames(rsa)
+noms1<-data.frame(noms)
+noms1$morphotype<-noms1$noms
+noms2<-inner_join(noms1,test0, by="morphotype")
+noms2$fusion<-paste(noms2$morphotype,noms2$ordre,sep=".")
+poiuy<-c("Saison","identifiant_arbre","site","date",noms2$fusion)
+colnames(rsa)<-poiuy
+
+rsar<-subset(rsa,rsa$site=="Reserve")
+rsar<-rsar[,-(1:5)]
+rsae<-subset(rsa,rsa$site=="Ext_Reserve")
+rsae<-rsae[,-(1:5)]
+rsab<-subset(rsa,rsa$site=="Bas-fond")
+rsab<-rsab[,-(1:5)]
+```
+
+*Aout - Réserve*
+
+```{r}
+plot1<-plotweb(rsar,method="cca",
+    text.rot=90,
+    col.high=
+      c(rep("#26A69A",1),rep("#CDDC39",1),rep("#FF5722",1),rep("#26A69A",1),rep("#CDDC39",2),
+        rep("#FF5722",2),rep("#CDDC39",2),rep("#26A69A",1)),
+    col.interaction="#263238",
+             high.spacing =0.001,
+         low.spacing =0.01,
+    col.low="#FAFAFA",
+    bor.col.high="white",
+    bor.col.low="black",
+    high.lablength=9,
+    bor.col.interaction = "white", #remove the black border color
+    high.lab.dis = 0,
+    adj.high=-0.1,
+        low.xoff = 0,
+    ybig=0,
+    y.lim = c(0,2))
+```
+
+**Indices**
+
+```{r}
+null.t.test(rsar, index=c("connectance","interaction evenness","modularity"))
+# Tous significativement différents
+```
+
+**Modèle nul + Comparaison des connectances**
+
+```{r}
+library(vegan)
+library(bipartite)
+obs1 <- unlist (networklevel (rsar, index="connectance"))
+obs0d <- unlist (networklevel (rsar, index="H2"))
+obs0e<-nestednodf(rsar)
+
+#Avoir la connectance du réseau -> faire pour 3 saisons et avoir une moyenne et une variabilité pour faire une figure?
+nul0<-nullmodel(rsar,method="r2dtable")
+null0d<-unlist(sapply(nul0,networklevel,index="H2"))
+null0e<-unlist(sapply(nul0,nestednodf))
+#Valeurs du paramètres sous un modèle nul
+```
+
+*Aout - Extérieur*
+
+```{r}
+plot2<-plotweb(rsae,method="cca",
+    text.rot=90,
+    col.high=
+      c(rep("#26A69A",2), rep("#CDDC39",1), rep("#26A69A",1),rep("#CDDC39",3), rep("#26A69A",1), rep("#CDDC39",1), 
+      rep("#26A69A",1),  rep("#CDDC39",2),rep("#FF5722",1),rep("#26A69A",5)),
+    col.interaction="#263238",
+             high.spacing =0.001,
+         low.spacing =0.01,
+    col.low="#FAFAFA",
+    bor.col.high="white",
+    bor.col.low="black",
+    high.lablength=9,
+    bor.col.interaction = "white", #remove the black border color
+    high.lab.dis = 0,
+    adj.high=-0.1,
+        low.xoff = 0,
+    ybig=0,
+    y.lim = c(0,2))
+```
+
+**Indices**
+
+```{r}
+networklevel(rsae)
+null.t.test(rsae, index=c("connectance","interaction evenness","H2","modularity"))
+# Tous significativement différents
+```
+
+**Modèle nul + Comparaison des connectances**
+
+```{r}
+library(vegan)
+obs2 <- unlist (networklevel (rsae, index="connectance"))
+obs2d <- unlist (networklevel (rsae, index="H2"))
+obs2e<-nestednodf(rsae)
+#Avoir la connectance du réseau -> faire pour 3 saisons et avoir une moyenne et une variabilité pour faire une figure?
+nul2<-nullmodel(rsae,method="r2dtable")
+null2d<-unlist(sapply(nul2,networklevel,index="H2"))
+#Valeurs du paramètres sous un modèle nul
+```
+
+*Aout - Bas-Fond*
+
+```{r}
+plot3<-plotweb(rsab,method="cca",
+    text.rot=90,
+    col.high=
+      c(rep("#CDDC39",3),rep("#26A69A",1),rep("#CDDC39",1),rep("#FF5722",1), rep("#CDDC39",1),rep("#26A69A",4),rep("purple",1)),
+    col.interaction="#263238",
+             high.spacing =0.001,
+         low.spacing =0.01,
+    col.low="#FAFAFA",
+    bor.col.high="white",
+    bor.col.low="black",
+    high.lablength=9,
+    bor.col.interaction = "white", #remove the black border color
+    high.lab.dis = 0,
+    adj.high=-0.1,
+        low.xoff = 0,
+    ybig=0,
+    y.lim = c(0,2))
+```
+
+**Indices**
+
+```{r}
+null.t.test(rsab, index=c("connectance","interaction evenness","H2","modularity"))
+# Tous significativement différents
+```
+
+**Modèle nul + Comparaison des connectances**
+
+```{r}
+library(vegan)
+obs3 <- unlist (networklevel (rsab, index="connectance"))
+obs3d <- unlist (networklevel (rsab, index="H2"))
+obs3e<-nestednodf(rsab)
+#Avoir la connectance du réseau -> faire pour 3 saisons et avoir une moyenne et une variabilité pour faire une figure?
+nul3<-nullmodel(rsab,method="r2dtable")
+null3d<-unlist(sapply(nul3,networklevel,index="H2"))
+#Valeurs du paramètres sous un modèle nul
+```
+
+**Février**
+
+```{r include=FALSE}
+rsf<-subset(fpollini, fpollini$Saison=="Fevrier")
+rsf<-rsf[1:75]
+nomsf<-colnames(rsf)
+noms1f<-data.frame(nomsf)
+noms1f$morphotype<-noms1f$nomsf
+noms2f<-inner_join(noms1f,test0, by="morphotype")
+noms2f$fusion<-paste(noms2f$morphotype,noms2f$ordre,sep=".")
+poif<-c("Saison","identifiant_arbre","site","date",noms2f$fusion)
+colnames(rsf)<-poif
+
+rsfr<-subset(rsf,rsf$site=="Reserve")
+rsfr<-rsfr[,-(1:5)]
+rsfe<-subset(rsf,rsf$site=="Ext_Reserve")
+rsfe<-rsfe[,-(1:5)]
+rsfb<-subset(rsf,rsf$site=="Bas-fond")
+rsfb<-rsfb[,-(1:5)]
+```
+
+*Février - Réserve*
+
+```{r echo=FALSE}
+plotweb(rsfr,method="cca",
+    text.rot=90,
+    col.high=
+      c( rep("#CDDC39",2),rep("#26A69A",7),rep("#CDDC39",4), rep("#FF5722",1),
+         rep("#26A69A",2)),
+    col.interaction="#263238",
+             high.spacing =0.001,
+         low.spacing =0.01,
+    col.low="#FAFAFA",
+    bor.col.high="white",
+    bor.col.low="black",
+    high.lablength=9,
+    bor.col.interaction = "white", #remove the black border color
+    high.lab.dis = 0,
+    adj.high=-0.1,
+        low.xoff = 0,
+    ybig=0,
+    y.lim = c(0,2))
+```
+
+**Indices**
+
+```{r}
+null.t.test(rsfr, index=c("connectance","interaction evenness","modularity"))
+# Tous significativement différents
+```
+
+**Modèle nul + Comparaison des connectances**
+
+```{r}
+library(vegan)
+obs4 <- unlist (networklevel (rsfr, index="connectance"))
+obs4d <- unlist (networklevel (rsfr, index="H2"))
+obs4e<-nestednodf(rsfr)
+#Avoir la connectance du réseau -> faire pour 3 saisons et avoir une moyenne et une variabilité pour faire une figure?
+nul4<-nullmodel(rsfr,method="r2dtable")
+null4d<-unlist(sapply(nul4,networklevel,index="H2"))
+#Valeurs du paramètres sous un modèle nul
+```
+
+*Février - Ext_Parcelle*
+
+```{r echo=FALSE}
+plotweb(rsfe,method="cca",
+    text.rot=90,
+    col.high=
+      c(rep("#CDDC39",2), rep("#26A69A",2), rep("#CDDC39",3),
+         rep("#26A69A",2)),
+    col.interaction="#263238",
+             high.spacing =0.001,
+         low.spacing =0.01,
+    col.low="#FAFAFA",
+    bor.col.high="white",
+    bor.col.low="black",
+    high.lablength=9,
+    bor.col.interaction = "white", #remove the black border color
+    high.lab.dis = 0,
+    adj.high=-0.1,
+        low.xoff = 0,
+    ybig=0,
+    y.lim = c(0,2))
+```
+
+**Indices**
+
+```{r}
+null.t.test(rsfe, index=c("connectance","interaction evenness","H2","modularity"))
+```
+
+**Modèle nul + Comparaison des connectances**
+
+```{r}
+library(vegan)
+obs5 <- unlist (networklevel (rsfe, index="connectance"))
+obs5d <- unlist (networklevel (rsfe, index="H2"))
+obs5e<-nestednodf(rsfe)
+#Avoir la connectance du réseau -> faire pour 3 saisons et avoir une moyenne et une variabilité pour faire une figure?
+nul5<-nullmodel(rsfe, method="r2dtable")
+null5d<-unlist(sapply(nul5,networklevel,index="H2"))
+#Valeurs du paramètres sous un modèle nul
+```
+
+*Février - Bas_Fond*
+
+```{r echo=FALSE}
+plotweb(rsfb,method="cca",
+    text.rot=90,
+    col.high=
+      c(rep("#FF5722",1),rep("#26A69A",2),rep("#FF5722",1),rep("#26A69A",4),
+        rep("#FF5722",2), rep("#CDDC39",1), rep("#FF5722",1),rep("#26A69A",4)),
+    col.interaction="#263238",
+             high.spacing =0.001,
+         low.spacing =0.01,
+    col.low="#FAFAFA",
+    bor.col.high="white",
+    bor.col.low="black",
+    high.lablength=9,
+    bor.col.interaction = "white", #remove the black border color
+    high.lab.dis = 0,
+    adj.high=-0.1,
+        low.xoff = 0,
+    ybig=0,
+    y.lim = c(0,2))
+```
+
+**Indices**
+
+```{r}
+null.t.test(rsfb, index=c("connectance","interaction evenness","modularity"))
+```
+
+**Modèle nul + Comparaison des connectances**
+
+```{r}
+library(vegan)
+obs6 <- unlist (networklevel (rsfb, index="connectance"))
+obs6d <- unlist (networklevel (rsfb, index="H2"))
+obs6e<-nestednodf(rsfb)
+#Avoir la connectance du réseau -> faire pour 3 saisons et avoir une moyenne et une variabilité pour faire une figure?
+nul6<-nullmodel(rsfb, method="r2dtable")
+null6d<-unlist(sapply(nul6,networklevel,index="H2"))
+#Valeurs du paramètres sous un modèle nul
+```
+
+**Juin**
+
+```{r include=FALSE}
+rsj<-subset(fpollini, fpollini$Saison=="Juin")
+rsj<-rsj[1:75]
+nomsj<-colnames(rsj)
+noms1j<-data.frame(nomsj)
+noms1j$morphotype<-noms1j$nomsj
+noms2j<-inner_join(noms1j,test0, by="morphotype")
+noms2j$fusion<-paste(noms2j$morphotype,noms2j$ordre,sep=".")
+poij<-c("Saison","identifiant_arbre","site","date",noms2j$fusion)
+colnames(rsj)<-poij
+
+rsjr<-subset(rsj,rsj$site=="Reserve")
+rsjr<-rsjr[,-(1:5)]
+rsje<-subset(rsj,rsj$site=="Ext_Reserve")
+rsje<-rsje[,-(1:5)]
+rsjb<-subset(rsj,rsj$site=="Bas-fond")
+rsjb<-rsjb[,-(1:5)]
+```
+
+*Juin- Réserve*
+
+```{r echo=FALSE}
+plotweb(rsjr,method="cca",
+    text.rot=90,
+    col.high=
+      c(rep("#CDDC39",2),rep("#FF5722",1),rep("#FF5722",1), rep("#26A69A",3)),
+    col.interaction="#263238",
+             high.spacing =0.001,
+         low.spacing =0.01,
+    col.low="#FAFAFA",
+    bor.col.high="white",
+    bor.col.low="black",
+    high.lablength=9,
+    bor.col.interaction = "white", #remove the black border color
+    high.lab.dis = 0,
+    adj.high=-0.1,
+        low.xoff = 0,
+    ybig=0,
+    y.lim = c(0,2))
+```
+
+**Indices**
+
+```{r}
+null.t.test(rsjr, index=c("connectance","interaction evenness","modularity"))
+# Tous significativement différents
+```
+
+**Modèle nul + Comparaison des connectances**
+
+```{r}
+library(vegan)
+obs7 <- unlist (networklevel (rsjr, index="connectance"))
+obs7d <- unlist (networklevel (rsjr, index="H2"))
+obs7e<-nestednodf(rsjr)
+#Avoir la connectance du réseau -> faire pour 3 saisons et avoir une moyenne et une variabilité pour faire une figure?
+nul7<-nullmodel(rsjr,N=500, method="r2dtable")
+null7d<-unlist(sapply(nul7,networklevel,index="H2"))
+#Valeurs du paramètres sous un modèle nul
+```
+
+*Juin - Ext_Parcelle*
+
+```{r}
+plotweb(rsje,method="cca",
+    text.rot=90,
+    col.high=
+      c(rep("#26A69A",1),rep("#CDDC39",2),rep("#26A69A",2)),
+    col.interaction="#263238",
+             high.spacing =0.001,
+         low.spacing =0.01,
+    col.low="#FAFAFA",
+    bor.col.high="white",
+    bor.col.low="black",
+    high.lablength=9,
+    bor.col.interaction = "white", #remove the black border color
+    high.lab.dis = 0,
+    adj.high=-0.1,
+        low.xoff = 0,
+    ybig=0,
+    y.lim = c(0,2))
+```
+
+
+```{r}
+null.t.test(rsje, index=c("connectance","interaction evenness","H2"))
+```
+
+**Modèle nul + Comparaison des connectances**
+
+```{r}
+library(vegan)
+obs8 <- unlist (networklevel (rsje, index="connectance"))
+obs8d <- unlist (networklevel (rsje, index="H2"))
+obs8e<-nestednodf(rsje)
+#Avoir la connectance du réseau -> faire pour 3 saisons et avoir une moyenne et une variabilité pour faire une figure?
+nul8<-nullmodel(rsje,N=500, method="r2dtable")
+null8d<-unlist(sapply(nul8,networklevel,index="H2"))
+#Valeurs du paramètres sous un modèle nul
+```
+
+*Juin - Bas_Fond*
+
+```{r echo=FALSE}
+plotweb(rsjb,method="cca",
+    text.rot=90,
+    col.high=
+      c(rep("#26A69A",1),rep("#CDDC39",3),rep("#26A69A",1)),
+    col.interaction="#263238",
+             high.spacing =0.001,
+         low.spacing =0.01,
+    col.low="#FAFAFA",
+    bor.col.high="white",
+    bor.col.low="black",
+    high.lablength=9,
+    bor.col.interaction = "white", #remove the black border color
+    high.lab.dis = 0,
+    adj.high=-0.1,
+        low.xoff = 0,
+    ybig=0,
+    y.lim = c(0,2))
+```
+
+**Indices**
+
+```{r echo=FALSE}
+null.t.test(rsjb, index=c("connectance","interaction evenness","H2","modularity"))
+# Tous significativement différents
+```
+
+**Modèle nul + Comparaison des connectances**
+
+```{r echo=FALSE}
+library(vegan)
+obs9 <- unlist (networklevel (rsjb, index="connectance"))
+obs9d <- unlist (networklevel (rsjb, index="H2"))
+obs9e<-nestednodf(rsjb)
+#Avoir la connectance du réseau -> faire pour 3 saisons et avoir une moyenne et une variabilité pour faire une figure?
+nul9<-nullmodel(rsjb,N=500,method="r2dtable")
+null9d<-unlist(sapply(nul9,networklevel,index="H2"))
+#Valeurs du paramètres sous un modèle nul
+```
+
+*Connectance & Création du tableau*
+
+```{r include=FALSE}
+connectobsr<-c(0.345,0.463,0.429)
+connectobse<-c(0.3054,0.3958,0.3959)
+connectobsb<-c(0.2754,0.3032,0.3103)
+
+connectobsr0<-c(0.3443,0.3307,0.3181)
+connectobse0<-c(0.3543,0.437,0.3361)
+connectobsb0<-c(0.3560,0.4373,0.3469)
+
+month<-c(rep("Aout",3),rep("Fevrier",3),rep("Juin",3))
+action<-rep(c("Reserve","Ext_Parcelle","Bas-fond"),6)
+connect<-c(connectobsr,connectobse,connectobsb,connectobsr0,connectobse0,connectobsb0)
+data<-c(rep("Observed",9),rep("Patefield",9))
+parars<-data.frame(month=month,site=action, data=data,connectance=connect)
+```
+
+Graph - Connectance
+
+```{r echo=FALSE}
+library(ggthemes) 
+rain <- c("#AB47BC","#212121")
+nv<-ggplot(parars, aes(x=site, y=connectance,facet=data, color=data)) + 
+geom_point(shape=18,size=3, alpha=0.5, position=position_dodge(width=0.3),aes(ymin=connectance-sd(connectance), ymax=connectance+sd(connectance)))+
+ theme_bw() + scale_color_manual(values=rain) +stat_summary(fun.data=mean_sdl, fun.args = list(mult = 1), 
+                 geom="pointrange", shape=19, size=1,alpha=1,position=position_dodge(width=0.3)) +
+labs(x = "Saison", y = "Connectance", col="Méthode") + 
+ theme(axis.text.y = element_text(face="bold",colour = "black", size = 13),
+    axis.text.x = element_text(face="bold",colour = "black", size = 13), 
+    legend.text = element_text(size = 10, colour ="black"))
+```
+
+*Modularité*
+
+```{r}
+modulobsr<-c(0.4234,0.4492,0.4619)
+modulobsrobse<-c(0.3406,0.3629,0.4870)
+modulobsrobsb<-c(0.3382,0.3629,0.4633)
+
+modulr0<-c(0.3624,0.3784,0.3667)
+module0<-c(0.2781,0.2737,0.3852)
+modulb0<-c(0.2763,0.2737,0.3361)
+
+modularity<-c(modulobsr,modulobsrobse,modulobsrobsb,modulr0,module0,modulb0)
+parars$modularity<-modularity
+```
+
+Graph - Modularity
+
+```{r echo=FALSE}
+rain2 <- c("#FF6F00","#212121")
+nc<-ggplot(parars, aes(x=site, y=modularity,facet=data, color=data)) + 
+geom_point(shape=18,size=3, alpha=0.5, position=position_dodge(width=0.3),aes(ymin=modularity-sd(modularity), ymax=modularity+sd(modularity)))+
+ theme_bw() + scale_color_manual(values=rain2) +stat_summary(fun.data=mean_sdl, fun.args = list(mult = 1), 
+                 geom="pointrange", shape=19, size=1,alpha=1,position=position_dodge(width=0.3)) +
+labs(x = "Saison", y = "Modularité", col="Méthode") + 
+ theme(axis.text.y = element_text(face="bold",colour = "black", size = 13),
+    axis.text.x = element_text(face="bold",colour = "black", size = 13), 
+    legend.text = element_text(size = 10, colour ="black"))
+```
+
+*Interacton.evennes*
+
+```{r}
+evenobsr<-c(0.7488,0.7482,0.7229)
+evenobsrobse<-c(0.7319,0.6665,0.7653)
+evenobsrobsb<-c(0.7322,0.6665,0.6909)
+
+evenr0<-c(0.7709,0.7765,0.7613)
+evene0<-c(0.7551,0.6913,0.7936)
+evenb0<-c(0.755,0.6916,0.7439)
+
+evenness<-c(evenobsr,evenobsrobse,evenobsrobsb,evenr0,evene0,evenb0)
+parars$evenness<-evenness
+```
+
+Graph - Evenness
+
+```{r echo=FALSE}
+rain2 <- c("#C0CA63","#212121")
+nx<-ggplot(parars, aes(x=site, y=evenness,facet=data, color=data)) + 
+geom_point(shape=18,size=3, alpha=0.5, position=position_dodge(width=0.3),aes(ymin=evenness-sd(evenness), ymax=evenness+sd(evenness)))+
+ theme_bw() + scale_color_manual(values=rain2) +stat_summary(fun.data=mean_sdl, fun.args = list(mult = 1), 
+                 geom="pointrange", shape=19, size=1,alpha=1,position=position_dodge(width=0.3)) +
+labs(x = "Saison", y = "Équitabilité des interactions", col="Méthode") + 
+ theme(axis.text.y = element_text(face="bold",colour = "black", size = 13),
+    axis.text.x = element_text(face="bold",colour = "black", size = 13), 
+    legend.text = element_text(size = 10, colour ="black"))
+```
+
+*H2*
+
+```{r}
+h2obsr<-c(0.3053,0.3744,0.4139)
+h2obse<-c(0.2393,0.2771,0.3416)
+h2obsb<-c(0.2393,0.2771,0.3859)
+  
+h2r0<-c(0.1873,0.2155,0.1915)
+h2e0<-c(0.1269,0.1116,0.1676)
+h2b0<-c(0.1234,0.1085,0.1344)
+
+H2<-c(h2obsr,h2obse,h2obsb,h2r0,h2e0,h2b0)
+parars$H2<-H2
+```
+
+Graph - H2 à modifier
+
+```{r echo=FALSE}
+rain2 <- c("#0D47A1","#212121")
+nw<-ggplot(parars, aes(x=site, y=H2,facet=data, color=data)) + 
+geom_point(shape=18,size=3, alpha=0.5, position=position_dodge(width=0.3),aes(ymin=H2-sd(H2), ymax=H2+sd(H2 )))+
+ theme_bw() + scale_color_manual(values=rain2) +stat_summary(fun.data=mean_sdl, fun.args = list(mult = 1), 
+                 geom="pointrange", shape=19, size=1,alpha=1,position=position_dodge(width=0.3)) +
+labs(x = "Saison", y = "H2", col="Méthode") + 
+ theme(axis.text.y = element_text(face="bold",colour = "black", size = 13),
+    axis.text.x = element_text(face="bold",colour = "black", size = 13), 
+    legend.text = element_text(size = 10, colour ="black"))
+```
+
+Nestedness
+
+```{r}
+obs9e
+nestobsr<-c(0.4687,0.5706,0.5520)
+
+nestobse<-c(1.05,0.29,1.41)
+nestobsb<-c(0.3538,0.3871,0.1566)
+  
+nestr0<-c(0,0,0)
+neste0<-c(0,0,0)
+nestb0<-c(0,0,0)
+
+nestedness<-c(nestobsr,nestobse,nestobsb,nestr0,neste0,nestb0)
+parars$nestedness<-nestedness
+```
+
+Graph - H2 à modifier
+
+```{r echo=FALSE}
+rain3 <- c("#212121")
+nq<-ggplot(parars, aes(x=site, y=nestedness)) + 
+geom_point(shape=18,size=3, alpha=0.5, position=position_dodge(width=0.3),aes(ymin=nestedness-sd(nestedness), ymax=nestedness+sd(nestedness)))+ theme_bw() + scale_color_manual(values=rain3) +stat_summary(fun.data=mean_sdl, fun.args = list(mult = 1), 
+                 geom="pointrange", shape=19, size=1,alpha=1,position=position_dodge(width=0.3)) +
+labs(x = "Saison", y = "Nestedness") + 
+ theme(axis.text.y = element_text(face="bold",colour = "black", size = 12),
+    axis.text.x = element_text(face="bold",colour = "black", size = 8), 
+    legend.text = element_text(size = 7, colour ="black"))
+```
+
+```{r}
+par(mfrow = c(2,2))
+nc
+nv
+nx
+nw
+```
+
+
+#Annexe : Figures Ordre
+*Filet*
+Hymenoptera
+```{r}
+library(ggplot2)
+coloror <- c("#333333","#FB8C00","#26A69A")
+syntfilethy<-subset(syntfilet,syntfilet$ordre=="Hymenoptera")
+ggplot(syntfilethy, aes(x=Saison, y=rspe,facet=site, color=site)) + 
+geom_point(shape=18,size=3, alpha=0.25, position=position_dodge(width=0.3),aes(ymin=rspe-sd(rspe), ymax=rspe+sd(rspe)))+
+ theme_bw() + scale_color_manual(values=coloror) +stat_summary(fun.data=mean_sdl, fun.args = list(mult = 1), geom="pointrange", shape=19, size=1,alpha=1,position=position_dodge(width=0.3)) + labs(x = "Saison", y = "Richesse spécifique", fill="Site") +
+          coord_cartesian(ylim = c(0, 25))+
+    ggtitle("Filet - Richesse spécifique")  +
+ theme(axis.text.y = element_text(face="bold",colour = "black", size = 13),
+    axis.text.x = element_text(face="bold",colour = "black", size = 13), 
+    legend.text = element_text(size = 13, colour ="black"))
+```
+
+Coleoptera
+```{r}
+colorco<- c("#333333","#FB8C00","#D32F2F")
+syntfiletco<-subset(syntfilet,syntfilet$ordre=="Coleoptera")
+ggplot(syntfiletco, aes(x=Saison, y=rspe,facet=site, color=site)) + 
+geom_point(shape=18,size=3, alpha=0.25, position=position_dodge(width=0.3),aes(ymin=rspe-sd(rspe), ymax=rspe+sd(rspe)))+
+ theme_bw() + scale_color_manual(values=colorco) +stat_summary(fun.data=mean_sdl, fun.args = list(mult = 1), geom="pointrange", shape=19, size=1,alpha=1,position=position_dodge(width=0.3)) + labs(x = "Saison", y = "Richesse spécifique", fill="Site") +
+          coord_cartesian(ylim = c(0, 10))+
+    ggtitle("Filet - Richesse spécifique")  +
+ theme(axis.text.y = element_text(face="bold",colour = "black", size = 13),
+    axis.text.x = element_text(face="bold",colour = "black", size = 13), 
+    legend.text = element_text(size = 13, colour ="black"))
+```
+
+Diptera
+```{r}
+syntfiletdi<-subset(syntfilet,syntfilet$ordre=="Diptera")
+colordi<- c("#333333","#FB8C00","#CDDC39")
+ggplot(syntfiletdi, aes(x=Saison, y=rspe,facet=site, color=site)) + 
+geom_point(shape=18,size=3, alpha=0.25, position=position_dodge(width=0.3),aes(ymin=rspe-sd(rspe), ymax=rspe+sd(rspe)))+
+ theme_bw() + scale_color_manual(values=colordi) +stat_summary(fun.data=mean_sdl, fun.args = list(mult = 1), geom="pointrange", shape=19, size=1,alpha=1,position=position_dodge(width=0.3)) + labs(x = "Saison", y = "Richesse spécifique", fill="Site") +
+          coord_cartesian(ylim = c(0, 10))+
+    ggtitle("Filet - Richesse spécifique")  +
+ theme(axis.text.y = element_text(face="bold",colour = "black", size = 13),
+    axis.text.x = element_text(face="bold",colour = "black", size = 13), 
+    legend.text = element_text(size = 13, colour ="black"))
+```
+
+Autres
+```{r}
+syntfiletau<-subset(syntfilet,syntfilet$ordre=="Autres")
+colorau<- c("#333333","#FB8C00","purple")
+ggplot(syntfiletau, aes(x=Saison, y=rspe,facet=site, color=site)) + 
+geom_point(shape=18,size=3, alpha=0.25, position=position_dodge(width=0.3),aes(ymin=rspe-sd(rspe), ymax=rspe+sd(rspe)))+
+ theme_bw() + scale_color_manual(values=colorau) +stat_summary(fun.data=mean_sdl, fun.args = list(mult = 1), geom="pointrange", shape=19, size=1,alpha=1,position=position_dodge(width=0.3)) + labs(x = "Saison", y = "Richesse spécifique", fill="Site") +
+          coord_cartesian(ylim = c(0, 10))+
+    ggtitle("Filet - Richesse spécifique")  +
+ theme(axis.text.y = element_text(face="bold",colour = "black", size = 13),
+    axis.text.x = element_text(face="bold",colour = "black", size = 13), 
+    legend.text = element_text(size = 13, colour ="black"))
+```
+
+
+*Pieges*
+
+Hymenoptera
+```{r}
+library(ggplot2)
+coloror <- c("#333333","#FB8C00","#26A69A")
+syntpiegehy<-subset(syntpiege,syntpiege$ordre=="Hymenoptera")
+ggplot(syntpiegehy, aes(x=Saison, y=rspe,facet=site, color=site)) + 
+geom_point(shape=18,size=3, alpha=0.25, position=position_dodge(width=0.3),aes(ymin=rspe-sd(rspe), ymax=rspe+sd(rspe)))+
+ theme_bw() + scale_color_manual(values=coloror) +stat_summary(fun.data=mean_sdl, fun.args = list(mult = 1), geom="pointrange", shape=19, size=1,alpha=1,position=position_dodge(width=0.3)) + labs(x = "Saison", y = "Richesse spécifique", fill="Site") +
+          coord_cartesian(ylim = c(0, 25))+
+    ggtitle("Piege - Richesse spécifique")  +
+ theme(axis.text.y = element_text(face="bold",colour = "black", size = 13),
+    axis.text.x = element_text(face="bold",colour = "black", size = 13), 
+    legend.text = element_text(size = 13, colour ="black"))
+```
+
+Coleoptera
+```{r}
+colorco<- c("#333333","#FB8C00","#D32F2F")
+syntpiegeco<-subset(syntpiege,syntpiege$ordre=="Coleoptera")
+ggplot(syntpiegeco, aes(x=Saison, y=rspe,facet=site, color=site)) + 
+geom_point(shape=18,size=3, alpha=0.25, position=position_dodge(width=0.3),aes(ymin=rspe-sd(rspe), ymax=rspe+sd(rspe)))+
+ theme_bw() + scale_color_manual(values=colorco) +stat_summary(fun.data=mean_sdl, fun.args = list(mult = 1), geom="pointrange", shape=19, size=1,alpha=1,position=position_dodge(width=0.3)) + labs(x = "Saison", y = "Richesse spécifique", fill="Site") +
+          coord_cartesian(ylim = c(0, 8))+
+    ggtitle("Piege - Richesse spécifique")  +
+ theme(axis.text.y = element_text(face="bold",colour = "black", size = 13),
+    axis.text.x = element_text(face="bold",colour = "black", size = 13), 
+    legend.text = element_text(size = 13, colour ="black"))
+```
+
+Diptera
+```{r}
+syntpiegedi<-subset(syntpiege,syntpiege$ordre=="Diptera")
+colordi<- c("#333333","#FB8C00","#CDDC39")
+ggplot(syntpiegedi, aes(x=Saison, y=rspe,facet=site, color=site)) + 
+geom_point(shape=18,size=3, alpha=0.25, position=position_dodge(width=0.3),aes(ymin=rspe-sd(rspe), ymax=rspe+sd(rspe)))+
+ theme_bw() + scale_color_manual(values=colordi) +stat_summary(fun.data=mean_sdl, fun.args = list(mult = 1), geom="pointrange", shape=19, size=1,alpha=1,position=position_dodge(width=0.3)) + labs(x = "Saison", y = "Richesse spécifique", fill="Site") +
+          coord_cartesian(ylim = c(0, 20))+
+    ggtitle("Piege - Richesse spécifique")  +
+ theme(axis.text.y = element_text(face="bold",colour = "black", size = 13),
+    axis.text.x = element_text(face="bold",colour = "black", size = 13), 
+    legend.text = element_text(size = 13, colour ="black"))
+```
+
+Autres
+```{r}
+syntpiegeau<-subset(syntpiege,syntpiege$ordre=="Autres")
+colorau<- c("#333333","#FB8C00","purple")
+ggplot(syntpiegeau, aes(x=Saison, y=rspe,facet=site, color=site)) + 
+geom_point(shape=18,size=3, alpha=0.25, position=position_dodge(width=0.3),aes(ymin=rspe-sd(rspe), ymax=rspe+sd(rspe)))+
+ theme_bw() + scale_color_manual(values=colorau) +stat_summary(fun.data=mean_sdl, fun.args = list(mult = 1), geom="pointrange", shape=19, size=1,alpha=1,position=position_dodge(width=0.3)) + labs(x = "Saison", y = "Richesse spécifique", fill="Site") +
+          coord_cartesian(ylim = c(0, 15))+
+    ggtitle("Filet - Richesse spécifique")  +
+ theme(axis.text.y = element_text(face="bold",colour = "black", size = 13),
+    axis.text.x = element_text(face="bold",colour = "black", size = 13), 
+    legend.text = element_text(size = 13, colour ="black"))
+```
+
+#Annexe : Modèles Ordre
+
+Hymenoptera - Richesse filet & piege
+```{r}
+glmhy1 <- glmer(rspe ~ site*saison+(1|floraison ), data = syntfilethy, family = poisson, nAGQ=2) 
+summary(glmhy1)
+anova(glmhy1)
+
+#Test des résidus
+library(DHARMa)
+plot(simulateResiduals(glmhy1))
+
+library(MuMIn) #Détermination du r2
+r.squaredGLMM(glmhy1) #R2m représente le r avec seulement les effets fixes, et r2c il y a les effets de groupes
+#trigamma la plus fiable
+
+glmhy2 <- glmer(rspe ~ site*saison+(1|floraison), data = syntpiegehy, family = poisson, nAGQ=2)
+summary(glmhy2)
+anova(glmhy2)
+plot(simulateResiduals(glmhy2))
+r.squaredGLMM(glmhy2)
+```
+
+
+```{r}
+library(emmeans)
+emhy1 <- lsmeans(glmhy1, ~ site, by="saison")
+pairs(emhy1)
+
+emhy2 <- lsmeans(glmhy2, ~ site, by="saison")
+pairs(emhy2)
+```
+Diptera - Richesse filet & piege
+```{r}
+glmdi1<-glmer(rspe ~ site*saison+(1|floraison), data = syntfiletdi, family = poisson, nAGQ=2)
+glmdi2<-glmer(rspe ~ site*saison+(1|floraison), data = syntpiegedi, family = poisson, nAGQ=2)
+ 
+summary(glmdi1)
+anova(glmdi1)
+r.squaredGLMM(glmdi1)
+summary(glmdi2)
+anova(glmdi2)
+r.squaredGLMM(glmdi2)
+plot(simulateResiduals(glmdi1))
+plot(simulateResiduals(glmdi2))
+```
+```{r}
+emdi1 <- lsmeans(glmdi1, ~ site, by="saison")
+pairs(emdi1)
+
+emdi2 <- lsmeans(glmdi2, ~ site, by="saison")
+pairs(emdi2)
+```
+
+Coleoptera - Richesse filet & piege
+
+```{r}
+glmco1<-glmer(rspe ~ site*saison+(1|floraison), data = syntfiletco, family = poisson, nAGQ=2)
+glmco2<-glmer(rspe ~ site*saison+(1|floraison), data = syntpiegeco, family = poisson, nAGQ=2)
+ 
+summary(glmco1)
+anova(glmco1)
+r.squaredGLMM(glmco1)
+summary(glmco2)
+anova(glmco2)
+r.squaredGLMM(glmco2)
+plot(simulateResiduals(glmco1))
+plot(simulateResiduals(glmco2))
+```
+
+```{r}
+emco1 <- lsmeans(glmco1, ~ site, by="saison")
+pairs(emco1)
+
+emco2 <- lsmeans(glmco2, ~ site, by="saison")
+pairs(emco2)
+```
+
+Autres - Richesse et abondance Filet
+
+```{r}
+glmau1<-glmer(rspe ~ site*saison+(1|floraison), data = syntfiletau, family = poisson, nAGQ=2)
+glmau2<-glmer(rspe ~ site*saison+(1|floraison), data = syntpiegeau, family = poisson, nAGQ=2)
+ 
+summary(glmau1)
+anova(glmau1)
+r.squaredGLMM(glmau1)
+summary(glmau2)
+anova(glmau2)
+r.squaredGLMM(glmau2)
+plot(simulateResiduals(glmau1))
+plot(simulateResiduals(glmau2))
+```
+
+```{r}
+emau1 <- lsmeans(glmau1, ~ site, by="saison")
+pairs(emau1)
+
+emau2 <- lsmeans(glmau2, ~ site, by="saison")
+pairs(emau2)
+```
+
+#Annexe : Permanova Saison selon les Ordres
+```{r}
+#Supprimer les lignes vides
+m_filet<-filet[,1:406]
+
+m_fileth<-subset(m_filet,m_filet$ordre=="Hymenoptera")
+m_fileth$nul<-apply(m_fileth[,6:406],1,sum)
+m_fileth<-subset(m_fileth,m_fileth$nul !=0)
+
+m_piege<-piege[,1:406]
+
+m_piegeh<-subset(m_piege,m_piege$ordre=="Hymenoptera")
+m_piegeh$nul<-apply(m_piegeh[,6:406],1,sum)
+m_piegeh<-subset(m_piegeh,m_piegeh$nul !=0)
+
+# Résultats
+filet.divh<-adonis2(m_fileth[,6:406]~as.factor(m_fileth$Saison), data=m_fileth, permutations=5000)
+filet.divh
+
+piege.divh<-adonis2(m_piegeh[,6:406]~as.factor(m_piegeh$Saison), data=m_piegeh, permutations=5000)
+piege.divh
+```
+
+Diptera
+
+```{r}
+m_filetd<-subset(m_filet,m_filet$ordre=="Diptera")
+m_filetd$nul<-apply(m_filetd[,6:406],1,sum)
+m_filetd<-subset(m_filetd,m_filetd$nul !=0)
+
+m_pieged<-subset(m_piege,m_piege$ordre=="Diptera")
+m_pieged$nul<-apply(m_pieged[,6:406],1,sum)
+m_pieged<-subset(m_pieged,m_pieged$nul !=0)
+
+# Résultats
+filet.divd<-adonis2(m_filetd[,6:406]~as.factor(m_filetd$Saison), data=m_filetd, permutations=5000)
+filet.divd
+
+piege.divd<-adonis2(m_pieged[,6:406]~as.factor(m_pieged$Saison), data=m_pieged, permutations=5000)
+piege.divd
+```
+
+Coleoptera
+
+```{r}
+m_filetc<-subset(m_filet,m_filet$ordre=="Coleoptera")
+m_filetc$nul<-apply(m_filetc[,6:406],1,sum)
+m_filetc<-subset(m_filetc,m_filetc$nul !=0)
+
+m_piegec<-subset(m_piege,m_piege$ordre=="Coleoptera")
+m_piegec$nul<-apply(m_piegec[,6:406],1,sum)
+m_piegec<-subset(m_piegec,m_piegec$nul !=0)
+
+# Résultats
+filet.divc<-adonis2(m_filetc[,6:406]~as.factor(m_filetc$Saison), data=m_filetc, permutations=5000)
+filet.divc
+
+piege.divc<-adonis2(m_piegec[,6:406]~as.factor(m_piegec$Saison), data=m_piegec, permutations=5000)
+piege.divc
+
+```
+
+Autres
+
+```{r}
+m_fileta<-subset(m_filet,m_filet$ordre=="Autres")
+m_fileta$nul<-apply(m_fileta[,6:406],1,sum)
+m_fileta<-subset(m_fileta,m_fileta$nul !=0)
+
+m_piegea<-subset(m_piege,m_piege$ordre=="Autres")
+m_piegea$nul<-apply(m_piegea[,6:406],1,sum)
+m_piegea<-subset(m_piegea,m_piegea$nul !=0)
+
+# Résultats
+filet.diva<-adonis2(m_fileta[,6:406]~as.factor(m_fileta$Saison), data=m_fileta, permutations=5000)
+filet.diva
+piege.diva<-adonis2(m_piegea[,6:406]~as.factor(m_piegea$Saison), data=m_piegea, permutations=5000)
+piege.diva
+```
+
+
+#Beta de Jaccard
+```{r}
+library("entropart")
+fipiaout<-subset(fipi, fipi$Saison=="Aout")
+fipifev<-subset(fipi, fipi$Saison=="Fevrier")
+fipijuin<-subset(fipi, fipi$Saison=="Juin")
+sum(fipiaout[,6:406])
+sum(fipifev[,6:406])
+sum(fipijuin[,6:406])
+```
+
+```{r}
+filetallaout<-subset(filetall, filetall$Saison=="Aout")
+filetalljuin<-subset(filetall, filetall$Saison=="Juin")
+filetallfev<-subset(filetall, filetall$Saison=="Fevrier")
+
+sum(filetallaout[,6:406])
+sum(filetalljuin[,6:406])
+sum(filetallfev[,6:406])
+```
+
+```{r}
+library(dplyr)
+fipiaoutb<-summarise_each(fipiaout[,6:406],funs(sum))
+fipiaoutb<-t(fipiaoutb)
+fipiaoutb<-data.frame(fipiaoutb)
+fipiaoutb$presence<-fipiaoutb$fipiaoutb
+fipiaoutb$presence<-as.numeric(fipiaoutb$presence)
+
+```
+
+
+```{r}
+#Dissimilarité Beta de Jaccard
+library("dplyr")
+library("ade4")
+fipiaoutc<-summarise_each(fipiaout[,6:406], funs(sum))
+row.names(fipiaoutc)<-"Aout"
+
+fipijuinc<-summarise_each(fipijuin[,6:406], funs(sum))
+row.names(fipijuinc)<-"Juin"
+
+fipifevc<-summarise_each(fipifev[,6:406], funs(sum))
+row.names(fipifevc)<-"Fevrier"
+
+fejuau<-bind_rows(fipifevc,fipiaoutc)
+fejuau<-bind_rows(fejuau,fipijuinc)
+
+DistJaccard <- dist.binary(fejuau, method = 1)
+DistJaccard 
+```
+
+Somme des espèces par saison
+```{r}
+fipiaouta<-fipiaout[,6:406]
+fipiaout2<-apply(fipiaouta,2,sum)
+fipiaoutb<-bind_rows(fipiaouta,fipiaout2)
+fipiaoutc<-t(fipiaoutb)
+fipiaoutc<-data.frame(fipiaoutc)
+fipiaoutc$somme<-fipiaoutc[,101]
+fipiaoutd<-filter(fipiaoutc, fipiaoutc$somme > 0)
+length(fipiaoutd$somme)
+
+fipifeva<-fipifev[,6:406]
+fipifev2<-apply(fipifeva,2,sum)
+fipifevb<-bind_rows(fipifeva,fipifev2)
+fipifevc<-t(fipifevb)
+fipifevc<-data.frame(fipifevc)
+fipifevc$somme<-fipifevc[,85]
+fipifevd<-filter(fipifevc, fipifevc$somme > 0)
+length(fipifevd$somme)
+
+fipijuina<-fipijuin[,6:406]
+fipijuin2<-apply(fipijuina,2,sum)
+fipijuinb<-bind_rows(fipijuina,fipijuin2)
+fipijuinc<-t(fipijuinb)
+fipijuinc<-data.frame(fipijuinc)
+fipijuinc$somme<-fipijuinc[,97]
+fipijuind<-filter(fipijuinc, fipijuinc$somme > 0)
+length(fipijuind$somme)
+```
+
+#Relation floraison / diversité
+```{r}
+ultrapoll<-bind_rows(syntppoll,syntfpoll)
+ultrapoll$floraison<-as.numeric(ultrapoll$floraison)
+glmflor<-lmer(rspe ~ floraison + (1|saison), data = ultrapoll) #Estimation des paramètres du modèle par la Quadrature de Gauss-Hermite (Bolker, 2008) 
+summary(glmflor)
+Anova(glmflor, type=2, method="chisq") #methode chis2 car glmer et type 3 car plan déséquilibré et présence d'une interaction
+
+#Test des résidus
+plot(glmflor)
+```
